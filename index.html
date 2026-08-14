@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>빼고 — 오늘 뭐 먹지?</title>
+<meta name="description" content="어제 먹은 메뉴를 알려주면, 그것과 겹치지 않는 근처 맛집을 골라드려요. 진짜 다녀온 사람들의 기록으로.">
+<meta name="theme-color" content="#F7F3EC">
+
+<!-- OG / 공유 (PRD F5) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="빼고">
+<meta property="og:title" content="빼고 — 오늘 뭐 먹지?">
+<meta property="og:description" content="어제 먹은 메뉴를 알려주면, 그것과 겹치지 않는 근처 맛집을 골라드려요.">
+<!-- TODO(배포 전 필수): 실제 OG 이미지(1200x630) 업로드 후 절대경로로 교체.
+     PRD 9장 — OG 없이 공유된 링크의 인상은 되돌릴 수 없다. -->
+<meta property="og:image" content="./og-image.png">
+<meta property="og:url" content="https://example.com/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- JS가 죽으면 reveal 요소가 영영 opacity:0 으로 남는다. 그 경우 모션 자체를 끈다. -->
+<script>document.documentElement.classList.add("js");</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600&display=swap">
+
+<style>
+/* ============================================================
+   토큰 — DESIGN.md 8장
+   ============================================================ */
+:root {
+  /* Color */
+  --bg:         #F7F3EC;
+  --surface:    #FFFDF8;
+  --ink:        #2B2320;
+  --ink-muted:  #635850;
+  --line:       #E5DDD1;
+  --on-ink:     #F7F3EC;
+  --dim:        rgba(43, 35, 32, 0.45);
+
+  /* DESIGN 2.3 — 유일하게 허용된 유채색. 폼 에러 전용.
+     --bg 대비 6.0:1 (WCAG AA 통과). 다른 곳에 재사용하지 않는다. */
+  --error:      #8C4A3F;
+
+  /* Typography */
+  --font-serif: "Noto Serif KR", serif;
+  --font-body:  "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* Space (4px scale) */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+  --space-4: 16px;  --space-5: 20px;  --space-6: 24px;
+  --space-8: 32px;  --space-12: 48px; --space-16: 64px;
+  --space-24: 96px;
+
+  /* Radius */
+  --radius-sm:   8px;
+  --radius-md:   10px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease-out:        cubic-bezier(0.2, 0, 0, 1);
+  --duration-enter:  500ms;
+  --duration-hover:  200ms;
+  --duration-state:  150ms;
+
+  /* Layout */
+  --maxw: 1120px;
+  --pad:  20px;
+}
+
+@media (min-width: 768px)  { :root { --pad: 40px; } }
+@media (min-width: 1200px) { :root { --pad: 64px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+@media (min-width: 768px) { body { font-size: 16px; } }
+
+img { max-width: 100%; display: block; }
+button { font: inherit; color: inherit; }
+
+/* DESIGN 5.2 — 포커스 링은 절대 제거하지 않는다 */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--pad);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============================================================
+   타이포 스케일 — DESIGN 3.4 (모바일 기본 → 768px에서 데스크톱)
+   명조는 28px 이상에서만 (DESIGN 3.3 / 7.6)
+   ============================================================ */
+.t-display {
+  font-family: var(--font-serif);
+  font-weight: 600; font-size: 34px;
+  letter-spacing: -0.02em; line-height: 1.35;
+  margin: 0;
+}
+.t-h1 {
+  font-family: var(--font-serif);
+  font-weight: 600; font-size: 28px;
+  letter-spacing: -0.02em; line-height: 1.35;
+  margin: 0;
+}
+.t-h2 {
+  font-weight: 600; font-size: 20px;
+  letter-spacing: -0.01em; line-height: 1.4;
+  margin: 0;
+}
+.t-body   { font-size: 15px; font-weight: 400; line-height: 1.65; margin: 0; }
+.t-note   { font-size: 14px; font-weight: 400; line-height: 1.6;  margin: 0; }
+.t-caption{ font-size: 13px; font-weight: 400; line-height: 1.5;  margin: 0; font-variant-numeric: tabular-nums; }
+.t-label  { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; line-height: 1.4; margin: 0; }
+
+@media (min-width: 768px) {
+  .t-display { font-size: 56px; }
+  .t-h1      { font-size: 36px; }
+  .t-h2      { font-size: 22px; }
+  .t-body    { font-size: 16px; }
+}
+
+.muted { color: var(--ink-muted); }
+
+/* ============================================================
+   모션 — DESIGN 5장 / 5.1 (한 번만 실행, 결과 이후 미사용)
+   ============================================================ */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity   var(--duration-enter) var(--ease-out),
+    transform var(--duration-enter) var(--ease-out);
+}
+.js .reveal.is-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   헤더 / 푸터
+   ============================================================ */
+.masthead {
+  padding-block: var(--space-5);
+}
+.wordmark {
+  font-family: var(--font-body);
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.footer {
+  border-top: 1px solid var(--line);
+  padding-block: var(--space-12) var(--space-16);
+  color: var(--ink-muted);
+}
+.footer a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.footer-rows { display: grid; gap: var(--space-2); }
+
+/* ============================================================
+   버튼 — DESIGN 6.4
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out);
+}
+.btn-primary {
+  background: var(--ink); color: var(--on-ink); border: 1px solid var(--ink);
+}
+.btn-primary:hover:not(:disabled) { background: #1E1815; border-color: #1E1815; }
+.btn-secondary {
+  background: transparent; color: var(--ink); border: 1px solid var(--line);
+}
+.btn-secondary:hover { border-color: var(--ink-muted); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 599px) {
+  .btn-block { width: 100%; }
+}
+
+/* ============================================================
+   S1 히어로 — DESIGN 6.1
+   ============================================================ */
+.hero {
+  min-height: 82svh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding-block: var(--space-16) var(--space-24);
+  text-align: center;
+}
+.hero-sub {
+  margin-top: var(--space-5);
+  color: var(--ink-muted);
+}
+/* PRD S1 — 서브 카피 2행 고정 */
+.hero-sub br { display: inline; }
+.hero-cta { margin-top: var(--space-12); }  /* 고립이 곧 강조 (DESIGN 6.1) */
+
+.scope-note {
+  margin-top: var(--space-8);
+  color: var(--ink-muted);
+}
+
+/* ============================================================
+   섹션 공통
+   ============================================================ */
+.section { padding-block: var(--space-16); }
+@media (min-width: 768px) { .section { padding-block: var(--space-24); } }
+
+.section-head { margin-bottom: var(--space-8); }
+.eyebrow {
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  margin-bottom: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   S2 질문 인터랙션 — DESIGN 6.2
+   ============================================================ */
+.quiz {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+@media (min-width: 768px) { .quiz { padding: var(--space-12); } }
+
+.step[hidden] { display: none; }
+
+.chips {
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: 0; list-style: none;
+}
+.chip {
+  min-height: 44px;               /* DESIGN 6.2 — 44x44 터치 영역 */
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 14px; font-weight: 400;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out);
+}
+.chip:hover { border-color: var(--ink-muted); }
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+/* DESIGN 6.2 — "기억 안 나요"는 한 칸 띄우고 시각적으로 구분 */
+.chip-escape { margin-left: var(--space-4); color: var(--ink-muted); }
+.chip-escape[aria-pressed="true"] { color: var(--on-ink); }
+
+.quiz-foot {
+  margin-top: var(--space-8);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);
+}
+.quiz-hint { color: var(--ink-muted); }
+
+/* ============================================================
+   S3 결과 — DESIGN 6.3 / 6.5
+   결과 영역에는 모션을 쓰지 않는다 (PRD 9장)
+   ============================================================ */
+#results[hidden] { display: none; }
+
+.exclusion-banner {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-8);
+}
+
+.map-frame {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+}
+.map-frame svg { width: 100%; height: auto; display: block; }
+.map-caption {
+  border-top: 1px solid var(--line);
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink-muted);
+}
+
+.card-grid {
+  display: grid; gap: var(--space-5);
+  grid-template-columns: 1fr;
+  padding: 0; margin: 0; list-style: none;
+}
+@media (min-width: 600px)  { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px)  { .card-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color var(--duration-hover) var(--ease-out);
+}
+.card:hover { border-color: var(--ink); }
+
+.card-photo {
+  aspect-ratio: 4 / 3;                     /* DESIGN 6.3 — 4:3 고정 */
+  background: var(--line);                 /* DESIGN 7.2 — 스톡 이미지 대신 단색 블록 */
+  overflow: hidden;
+}
+.card-photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform var(--duration-hover) var(--ease-out);
+}
+.card:hover .card-photo img { transform: scale(1.02); }
+@media (prefers-reduced-motion: reduce) {
+  .card:hover .card-photo img { transform: none; }
+}
+
+.card-body {
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  flex: 1;
+}
+.card-title-row { display: flex; align-items: baseline; gap: var(--space-2); }
+.card-num {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  flex: none;
+}
+.card-title {
+  font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+  line-height: 1.4; margin: 0;
+}
+@media (min-width: 768px) { .card-title { font-size: 18px; } }
+
+.card-meta { color: var(--ink-muted); }
+.card-note { color: var(--ink-muted); }
+.card-demoted { color: var(--ink-muted); }
+
+.card-foot {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+
+.results-foot { margin-top: var(--space-8); }
+
+.empty-state {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+.empty-state p + p { margin-top: var(--space-3); }
+
+/* ============================================================
+   S4 전환 CTA
+   ============================================================ */
+.cta { text-align: center; }
+.cta-form {
+  margin-top: var(--space-8);
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  justify-content: center;
+}
+.cta-form[hidden] { display: none; }   /* display:flex 가 [hidden] 을 덮어쓰므로 명시 */
+.cta-input {
+  flex: 1 1 260px;
+  max-width: 360px;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font: inherit; font-size: 15px;
+}
+.cta-input::placeholder { color: var(--ink-muted); opacity: 1; }
+.cta-input:hover { border-color: var(--ink-muted); }
+.cta-input[aria-invalid="true"] { border-color: var(--error); }
+
+.form-error {
+  margin-top: var(--space-3);
+  color: var(--error);
+  min-height: 1.5em;
+}
+.form-error:empty { min-height: 0; }
+
+.privacy-note { margin-top: var(--space-5); color: var(--ink-muted); }
+.cta-done { margin-top: var(--space-8); }
+
+/* ============================================================
+   S5 소개 · 로드맵
+   ============================================================ */
+.about-lines { display: grid; gap: var(--space-4); max-width: 46ch; }
+
+.roadmap {
+  margin-top: var(--space-12);
+  padding: 0; list-style: none;
+  display: grid; gap: 0;
+  border-top: 1px solid var(--line);
+}
+.roadmap li {
+  border-bottom: 1px solid var(--line);
+  padding-block: var(--space-5);
+  display: grid; gap: var(--space-1);
+}
+@media (min-width: 768px) {
+  .roadmap li {
+    grid-template-columns: 140px 1fr;
+    gap: var(--space-5);
+    align-items: baseline;
+  }
+}
+.roadmap-status { color: var(--ink-muted); }
+</style>
+</head>
+
+<body>
+
+<a class="sr-only" href="#quiz">본문으로 건너뛰기</a>
+
+<header class="masthead">
+  <div class="wrap">
+    <a class="wordmark" href="#top" id="top">빼고<span class="sr-only"> — 홈</span></a>
+  </div>
+</header>
+
+<main>
+
+  <!-- ==========================================================
+       S1 · 히어로 — PRD S1 확정 카피
+       ========================================================== -->
+  <section class="hero wrap reveal" data-reveal>
+    <h1 class="t-display">오늘 뭐 먹지?</h1>
+
+    <p class="hero-sub t-body">
+      진짜 다녀온 사람들의 리뷰로<br>
+      실패 없는 한 끼를 찾아보세요.
+    </p>
+
+    <div class="hero-cta">
+      <button type="button" class="btn btn-primary btn-block" id="startBtn">10초 만에 정하기</button>
+    </div>
+
+    <!-- PRD 10.1 — 범위를 숨기지 않는다. 숨기면 미완성으로 읽힌다 -->
+    <p class="scope-note t-caption">현재 성수 지역만 지원해요.</p>
+  </section>
+
+
+  <!-- ==========================================================
+       S2 · 질문 인터랙션 (핵심) — PRD 7장
+       ========================================================== -->
+  <section class="section" id="quiz" aria-labelledby="quizHeading">
+    <div class="wrap">
+      <div class="quiz reveal" data-reveal>
+
+        <p class="eyebrow t-label" id="progressLabel" aria-live="polite">1 / 2 단계</p>
+
+        <!-- STEP 1 — 어제 뭐 드셨어요? -->
+        <div class="step" id="step1">
+          <h2 class="t-h1" id="quizHeading">어제 뭐 드셨어요?</h2>
+          <p class="t-note muted" style="margin-top:var(--space-3)">겹치지 않는 곳으로 골라드릴게요. 최대 3개.</p>
+
+          <div class="chips" id="categoryChips" role="group" aria-label="어제 먹은 음식 종류"></div>
+
+          <div class="quiz-foot">
+            <button type="button" class="btn btn-primary" id="toStep2" disabled>다음</button>
+            <span class="quiz-hint t-caption" id="step1Hint">하나 이상 골라주세요.</span>
+          </div>
+        </div>
+
+        <!-- STEP 2 — 지역 -->
+        <div class="step" id="step2" hidden>
+          <h2 class="t-h1">어디쯤 계세요?</h2>
+          <p class="t-note muted" style="margin-top:var(--space-3)">기록이 쌓인 동네부터 열고 있어요.</p>
+
+          <div class="chips" id="regionChips" role="group" aria-label="지역"></div>
+
+          <div class="quiz-foot">
+            <button type="button" class="btn btn-primary" id="showResults">결과 보기</button>
+            <button type="button" class="btn btn-secondary" id="backToStep1">이전</button>
+          </div>
+
+          <p class="t-caption muted" style="margin-top:var(--space-5)">
+            연남·망원은 기록을 모으는 중이에요.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ==========================================================
+       S3 · 결과 지도 — PRD S3 / DESIGN 6.3·6.5
+       이 영역에는 모션을 쓰지 않는다 (PRD 9장)
+       ========================================================== -->
+  <section class="section" id="results" hidden aria-labelledby="resultsHeading">
+    <div class="wrap">
+      <h2 class="sr-only" id="resultsHeading">오늘의 후보</h2>
+
+      <!-- DESIGN 6.5 — 서비스의 정체성을 전달하는 유일한 문장 -->
+      <div class="exclusion-banner" id="exclusionBanner" role="status">
+        <p class="t-body" id="exclusionText"></p>
+      </div>
+
+      <div id="resultsBody"></div>
+
+      <div class="results-foot">
+        <button type="button" class="btn btn-secondary" id="restartBtn">다시 고르기</button>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ==========================================================
+       S4 · 전환 CTA — PRD S4 확정 카피
+       ========================================================== -->
+  <section class="section" aria-labelledby="ctaHeading">
+    <div class="wrap cta">
+      <h2 class="t-h1" id="ctaHeading">당신의 한 끼가<br>다음 사람의 실패를 막습니다.</h2>
+      <p class="t-body muted" style="margin-top:var(--space-5)">
+        기록 기능이 열리면 가장 먼저 알려드릴게요.
+      </p>
+
+      <form class="cta-form" id="emailForm" novalidate>
+        <label class="sr-only" for="email">이메일 주소</label>
+        <input
+          class="cta-input" type="email" id="email" name="email"
+          placeholder="이메일 주소" autocomplete="email"
+          aria-describedby="emailError privacyNote">
+        <button type="submit" class="btn btn-primary">알림 받기</button>
+      </form>
+
+      <p class="form-error t-caption" id="emailError" role="alert"></p>
+
+      <p class="privacy-note t-caption" id="privacyNote">
+        출시 알림 발송에만 사용하고, 발송 후 또는 수신 거부 시 즉시 파기합니다. 보관 기간 최대 12개월.
+      </p>
+
+      <p class="cta-done t-body" id="ctaDone" role="status" hidden>등록됐어요. 기록 기능이 열리는 날 메일 드릴게요.</p>
+    </div>
+  </section>
+
+
+  <!-- ==========================================================
+       S5 · 서비스 소개 · 로드맵 — PRD S5 / 10.4
+       ========================================================== -->
+  <section class="section" aria-labelledby="aboutHeading">
+    <div class="wrap reveal" data-reveal>
+      <div class="section-head">
+        <p class="eyebrow t-label">소개</p>
+        <h2 class="t-h2" id="aboutHeading">더하지 않고, 뺍니다</h2>
+      </div>
+
+      <div class="about-lines t-body muted">
+        <p><strong style="color:var(--ink);font-weight:600">무엇을</strong> — 어제 먹은 메뉴를 알려주면, 겹치지 않는 근처 가게를 골라드려요.</p>
+        <p><strong style="color:var(--ink);font-weight:600">왜 다르게</strong> — 검색은 광고를, 지도는 별점을 줍니다. 어제 먹은 것과 다른 것은 아무도 걸러주지 않아요.</p>
+        <p><strong style="color:var(--ink);font-weight:600">앞으로</strong> — 찾아주는 기능보다 <em style="font-style:normal;color:var(--ink)">기록하는 기능이 먼저</em> 열립니다. 이 지도를 채우는 건 당신의 한 끼예요.</p>
+      </div>
+
+      <ul class="roadmap">
+        <li>
+          <p class="roadmap-status t-label">개발 중</p>
+          <p class="t-body">동네별 목록과 검색 · 필터</p>
+        </li>
+        <li>
+          <p class="roadmap-status t-label">개발 중</p>
+          <p class="t-body">다녀온 곳 기록하기 — 사진 한 장과 상황 태그로 1분 안에</p>
+        </li>
+        <li>
+          <p class="roadmap-status t-label">개발 중</p>
+          <p class="t-body">가고 싶은 곳 저장 · 내 지도로 모아보기</p>
+        </li>
+        <li>
+          <p class="roadmap-status t-label">구상 중</p>
+          <p class="t-body">나와 입맛이 맞는 사람의 기록을 먼저 보여주기</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+
+<!-- ============================================================
+     S6 · 푸터
+     ============================================================ -->
+<footer class="footer">
+  <div class="wrap footer-rows t-caption">
+    <p>빼고 <span aria-hidden="true">·</span> 가제입니다</p>
+    <p>만든 사람 JJIn <span aria-hidden="true">·</span> <a href="mailto:hello@example.com">hello@example.com</a></p>
+    <p>지금 보이는 가게 정보는 화면 확인용 샘플이에요. 실제 방문 기록으로 채우는 중입니다.</p>
+  </div>
+</footer>
+
+
+<script>
+/* ============================================================
+   ⚠️  SEED DATA — 여기만 수정하면 됩니다 (PRD 9장 유지보수 규칙)
+   ------------------------------------------------------------
+   ⚠️  경고: 아래 12곳은 구조 검증용 임시 데이터입니다.
+       가게명·메모·방문일이 실재하지 않습니다.
+       배포 전 반드시 실제 방문 기록 + 직접 촬영 사진으로 교체하세요.
+       이 상태로 공개하면 PRD 10.5의 신뢰 규칙이 그대로 깨집니다.
+
+   photo 를 비워두면 DESIGN 7.2 규칙대로 단색 블록으로 렌더됩니다.
+   스톡 이미지·가게 홍보 사진은 넣지 않습니다.
+   ============================================================ */
+const SERVICE_NAME = "빼고"; // 가제 (PRD 열린 이슈 1)
+
+const CATEGORIES = [
+  { code: "korean",   label: "한식" },
+  { code: "chinese",  label: "중식" },
+  { code: "japanese", label: "일식" },
+  { code: "western",  label: "양식" },
+  { code: "snack",    label: "분식" },
+  { code: "meat",     label: "고기" },
+  { code: "asian",    label: "아시안" },
+  { code: "fastfood", label: "패스트푸드" }
+];
+
+const REGIONS = [
+  { code: "seongsu", label: "성수동", lat: 37.5445, lng: 127.0557 }
+];
+
+const PLACES = [
+  { id:"place-001", name:"성수동 백반집",  category:"korean",   region:"seongsu", lat:37.5443, lng:127.0551, note:"제육이 짜지 않다. 혼자 가도 안 눈치보임", priceRange:1, author:"JJIn", visitedAt:"2026-07-21", photo:"", situationTags:["solo","family"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-002", name:"뚝섬 순두부",    category:"korean",   region:"seongsu", lat:37.5471, lng:127.0538, note:"국물이 맑다. 아침에 여는 몇 안 되는 곳", priceRange:1, author:"JJIn", visitedAt:"2026-07-03", photo:"", situationTags:["solo"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-003", name:"연무장 반점",    category:"chinese",  region:"seongsu", lat:37.5419, lng:127.0561, note:"짬뽕 국물에 불맛. 웨이팅은 1시 이후 없음", priceRange:2, author:"JJIn", visitedAt:"2026-06-28", photo:"", situationTags:["group"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-004", name:"성수 소바",      category:"japanese", region:"seongsu", lat:37.5456, lng:127.0592, note:"면을 직접 뽑는다. 여름에 줄이 길다",     priceRange:2, author:"JJIn", visitedAt:"2026-07-14", photo:"", situationTags:["solo","date"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-005", name:"서울숲 스시집",  category:"japanese", region:"seongsu", lat:37.5432, lng:127.0413, note:"점심 오마카세가 합리적. 예약 필수",       priceRange:3, author:"JJIn", visitedAt:"2026-05-30", photo:"", situationTags:["date","family"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-006", name:"성수 파스타",    category:"western",  region:"seongsu", lat:37.5468, lng:127.0574, note:"봉골레가 담백하다. 2인이면 딱 좋음",     priceRange:3, author:"JJIn", visitedAt:"2026-07-09", photo:"", situationTags:["date"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-007", name:"뚝섬 비스트로",  category:"western",  region:"seongsu", lat:37.5407, lng:127.0529, note:"저녁에만 연다. 조용해서 대화가 된다",     priceRange:3, author:"JJIn", visitedAt:"2026-06-11", photo:"", situationTags:["date","group"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-008", name:"연무장 분식",    category:"snack",    region:"seongsu", lat:37.5428, lng:127.0603, note:"떡볶이가 안 맵다. 튀김은 갓 튀겨줌",     priceRange:1, author:"JJIn", visitedAt:"2026-07-25", photo:"", situationTags:["solo","group"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-009", name:"성수 고깃집",    category:"meat",     region:"seongsu", lat:37.5459, lng:127.0546, note:"목살 두께가 좋다. 4인 이상은 예약",       priceRange:3, author:"JJIn", visitedAt:"2026-06-19", photo:"", situationTags:["group","family"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-010", name:"뚝섬 곱창",      category:"meat",     region:"seongsu", lat:37.5484, lng:127.0567, note:"초벌해서 나온다. 냄새 거의 없음",         priceRange:2, author:"JJIn", visitedAt:"2026-05-22", photo:"", situationTags:["group"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-011", name:"성수 쌀국수",    category:"asian",    region:"seongsu", lat:37.5437, lng:127.0578, note:"고수 빼달라 하면 잘 빼준다. 회전 빠름",   priceRange:1, author:"JJIn", visitedAt:"2026-07-30", photo:"", situationTags:["solo"], source:"seed", reviews:[], photos:[], savedCount:0 },
+  { id:"place-012", name:"서울숲 버거",    category:"fastfood", region:"seongsu", lat:37.5449, lng:127.0441, note:"패티를 직접 굽는다. 감자는 평범",         priceRange:2, author:"JJIn", visitedAt:"2026-06-05", photo:"", situationTags:["solo","group"], source:"seed", reviews:[], photos:[], savedCount:0 }
+];
+
+/* ============================================================
+   SEED DATA 끝 — 아래는 수정할 일이 거의 없습니다
+   ============================================================ */
+
+const MAX_PICKS   = 3;   // PRD 7.2 — 복수 선택 최대 3개
+const MAX_RESULTS = 5;   // PRD S3  — 많이 주는 게 아니라 좁혀주는 게 목적
+const NO_MEMORY   = "__nomemory__";
+
+const state = {
+  categories: new Set(),
+  region: REGIONS[0].code
+};
+
+const $  = (sel) => document.querySelector(sel);
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls)  n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+};
+const labelOf = (code) => (CATEGORIES.find(c => c.code === code) || {}).label || code;
+const regionOf = (code) => REGIONS.find(r => r.code === code) || REGIONS[0];
+
+/* ------------------------------------------------------------
+   STEP 1 — 카테고리 칩 (DESIGN 6.2)
+   ------------------------------------------------------------ */
+function buildCategoryChips() {
+  const box = $("#categoryChips");
+  CATEGORIES.forEach(cat => {
+    const b = el("button", "chip", cat.label);
+    b.type = "button";
+    b.dataset.code = cat.code;
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => toggleCategory(cat.code, b));
+    box.appendChild(b);
+  });
+
+  // PRD 7.2 — 회피 경로. 없으면 여기서 막힌다
+  const escape = el("button", "chip chip-escape", "기억 안 나요");
+  escape.type = "button";
+  escape.dataset.code = NO_MEMORY;
+  escape.setAttribute("aria-pressed", "false");
+  escape.addEventListener("click", () => toggleCategory(NO_MEMORY, escape));
+  box.appendChild(escape);
+}
+
+function toggleCategory(code, btn) {
+  const chips = [...document.querySelectorAll("#categoryChips .chip")];
+
+  if (code === NO_MEMORY) {
+    const turningOn = !state.categories.has(NO_MEMORY);
+    state.categories.clear();
+    if (turningOn) state.categories.add(NO_MEMORY);
+  } else {
+    state.categories.delete(NO_MEMORY);   // 배타 선택
+    if (state.categories.has(code)) {
+      state.categories.delete(code);
+    } else if (state.categories.size < MAX_PICKS) {
+      state.categories.add(code);
+    }
+  }
+
+  chips.forEach(c => c.setAttribute("aria-pressed", String(state.categories.has(c.dataset.code))));
+  syncStep1();
+}
+
+function syncStep1() {
+  const picked = state.categories.size;
+  const real = [...state.categories].filter(c => c !== NO_MEMORY).length;
+  $("#toStep2").disabled = picked === 0;
+  $("#step1Hint").textContent =
+    picked === 0            ? "하나 이상 골라주세요."
+    : state.categories.has(NO_MEMORY) ? "괜찮아요. 성수에서 골라드릴게요."
+    : real >= MAX_PICKS     ? "최대 3개까지 고를 수 있어요."
+    : `${real}개 선택했어요.`;
+}
+
+/* ------------------------------------------------------------
+   STEP 2 — 지역 칩 (PRD 7.3 — 씨드가 있는 지역만 노출)
+   ------------------------------------------------------------ */
+function buildRegionChips() {
+  const box = $("#regionChips");
+  REGIONS.forEach(r => {
+    const b = el("button", "chip", r.label);
+    b.type = "button";
+    b.dataset.code = r.code;
+    b.setAttribute("aria-pressed", String(state.region === r.code));
+    b.addEventListener("click", () => {
+      state.region = r.code;
+      [...box.children].forEach(c => c.setAttribute("aria-pressed", String(c.dataset.code === r.code)));
+    });
+    box.appendChild(b);
+  });
+}
+
+/* ------------------------------------------------------------
+   제외 로직 (F1) — 완전 제외가 아니라 하단 배치
+   PRD 7.2 / 10.3 — 완전히 빼면 결과가 0건이 되기 쉽다
+   ------------------------------------------------------------ */
+function pickResults() {
+  const excluded = new Set([...state.categories].filter(c => c !== NO_MEMORY));
+  const pool = PLACES.filter(p => p.region === state.region);
+
+  const keep   = pool.filter(p => !excluded.has(p.category));
+  const demote = pool.filter(p =>  excluded.has(p.category));
+
+  return [...keep, ...demote]
+    .slice(0, MAX_RESULTS)
+    .map(p => ({ ...p, demoted: excluded.has(p.category) }));
+}
+
+/** 마지막 글자의 받침 유무로 조사를 고른다. "고기은" 같은 문장이 나오면 안 된다. */
+function particle(word, withBatchim, withoutBatchim) {
+  const last = word.trim().at(-1) ?? "";
+  const code = last.charCodeAt(0);
+  const isHangulSyllable = code >= 0xAC00 && code <= 0xD7A3;
+  if (!isHangulSyllable) return withBatchim;          // 영문·숫자는 보수적으로
+  return (code - 0xAC00) % 28 !== 0 ? withBatchim : withoutBatchim;
+}
+
+function exclusionSentence() {
+  const picked = [...state.categories].filter(c => c !== NO_MEMORY);
+  const region = regionOf(state.region).label;
+  if (picked.length === 0) return `${region}에서 골라봤어요.`;
+  const list = picked.map(labelOf).join("·");
+  return `어제 드신 ${list}${particle(list, "은", "는")} 빼고 골랐어요.`;
+}
+
+/* ------------------------------------------------------------
+   거리 — 지역 기준점에서 도보 몇 분인지
+   사용자 위치를 요구하지 않는다 (PRD 7.3 — 첫 방문에 권한 팝업 금지)
+   ------------------------------------------------------------ */
+function walkMinutes(place) {
+  const origin = regionOf(place.region);
+  const dLat = (place.lat - origin.lat) * 111320;
+  const dLng = (place.lng - origin.lng) * 111320 * Math.cos(origin.lat * Math.PI / 180);
+  const meters = Math.hypot(dLat, dLng);
+  return Math.max(1, Math.round(meters / 67));   // 도보 약 67m/분
+}
+
+const formatDate = (iso) => iso.replaceAll("-", ".");
+
+/* ------------------------------------------------------------
+   결과 지도 (F2) — API 없이 SVG 투영
+   결과 단계에서만 생성한다 (PRD 9장 — 첫 화면에 지도를 올리지 않는다)
+   모션 없음 (DESIGN 5장)
+   ------------------------------------------------------------ */
+function buildMap(results) {
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 800, H = 440, PAD = 0.12;
+
+  const lats = results.map(p => p.lat);
+  const lngs = results.map(p => p.lng);
+  let minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  let minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+
+  // 결과가 한 점에 몰려도 0으로 나누지 않도록
+  const spanLat = Math.max(maxLat - minLat, 0.0008);
+  const spanLng = Math.max(maxLng - minLng, 0.0008);
+  const midLat = (minLat + maxLat) / 2, midLng = (minLng + maxLng) / 2;
+  minLat = midLat - spanLat / 2; maxLat = midLat + spanLat / 2;
+  minLng = midLng - spanLng / 2; maxLng = midLng + spanLng / 2;
+
+  const px = (lng) => PAD * W + ((lng - minLng) / spanLng) * W * (1 - 2 * PAD);
+  const py = (lat) => PAD * H + ((maxLat - lat) / spanLat) * H * (1 - 2 * PAD);
+
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("aria-hidden", "true");   // 텍스트 대체는 아래 카드 리스트 (DESIGN 5.2)
+  svg.setAttribute("focusable", "false");
+
+  // 격자 — 지도처럼 읽히되 실제 도로를 흉내 내지 않는다
+  const grid = document.createElementNS(NS, "g");
+  grid.setAttribute("stroke", "var(--line)");
+  grid.setAttribute("stroke-width", "1");
+  for (let x = 0; x <= W; x += 80) {
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", x); l.setAttribute("y1", 0);
+    l.setAttribute("x2", x); l.setAttribute("y2", H);
+    grid.appendChild(l);
+  }
+  for (let y = 0; y <= H; y += 80) {
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", 0); l.setAttribute("y1", y);
+    l.setAttribute("x2", W); l.setAttribute("y2", y);
+    grid.appendChild(l);
+  }
+  svg.appendChild(grid);
+
+  results.forEach((p, i) => {
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("transform", `translate(${px(p.lng).toFixed(1)}, ${py(p.lat).toFixed(1)})`);
+
+    const c = document.createElementNS(NS, "circle");
+    c.setAttribute("r", "18");
+    c.setAttribute("fill", "var(--ink)");
+    g.appendChild(c);
+
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("text-anchor", "middle");
+    t.setAttribute("y", "5");
+    t.setAttribute("fill", "var(--on-ink)");
+    t.setAttribute("font-size", "15");
+    t.setAttribute("font-weight", "600");
+    t.setAttribute("font-family", "var(--font-body)");
+    t.textContent = String(i + 1);
+    g.appendChild(t);
+
+    svg.appendChild(g);
+  });
+
+  const frame = el("div", "map-frame");
+  frame.appendChild(svg);
+  const cap = el("p", "map-caption t-caption",
+    `${regionOf(state.region).label} 일대 · 번호는 아래 목록과 같아요`);
+  frame.appendChild(cap);
+  return frame;
+}
+
+/* ------------------------------------------------------------
+   결과 카드 (DESIGN 6.3)
+   작성자·방문일은 필수. 정량 지표(별점·리뷰 수)는 넣지 않는다 (DESIGN 7.1)
+   ------------------------------------------------------------ */
+function buildCard(place, index) {
+  const li = el("li", "card");
+
+  const photo = el("div", "card-photo");
+  if (place.photo) {
+    const img = el("img");
+    img.src = place.photo;
+    img.alt = `${place.name} 방문 사진`;
+    img.loading = "lazy";
+    img.decoding = "async";
+    photo.appendChild(img);
+  }
+  // photo 가 없으면 --line 톤 단색 블록 그대로 (DESIGN 7.2)
+  li.appendChild(photo);
+
+  const body = el("div", "card-body");
+
+  const titleRow = el("div", "card-title-row");
+  titleRow.appendChild(el("span", "card-num", String(index + 1)));
+  titleRow.appendChild(el("h3", "card-title", place.name));
+  body.appendChild(titleRow);
+
+  body.appendChild(el("p", "card-meta t-caption",
+    `${labelOf(place.category)} · ${regionOf(place.region).label} 도보 ${walkMinutes(place)}분`));
+
+  body.appendChild(el("p", "card-note t-note", place.note));
+
+  if (place.demoted) {
+    body.appendChild(el("p", "card-demoted t-caption", "어제 드신 종류예요"));
+  }
+
+  body.appendChild(el("p", "card-foot t-caption",
+    `${place.author} · ${formatDate(place.visitedAt)}`));
+
+  li.appendChild(body);
+  return li;
+}
+
+/* ------------------------------------------------------------
+   결과 렌더
+   ------------------------------------------------------------ */
+function renderResults() {
+  const results = pickResults();
+  const box = $("#resultsBody");
+  box.replaceChildren();
+
+  $("#exclusionText").textContent = exclusionSentence();
+
+  // PRD S3 — 빈 화면 금지
+  if (results.length === 0) {
+    const empty = el("div", "empty-state");
+    empty.appendChild(el("p", "t-h2", "이 동네는 아직 기록이 적어요"));
+    empty.appendChild(el("p", "t-body muted", "가까운 연남·망원은 기록을 모으는 중이에요. 열리면 알려드릴게요."));
+    empty.appendChild(el("p", "t-body muted", "이 동네의 첫 기록을 남겨주실래요?"));
+    box.appendChild(empty);
+  } else {
+    box.appendChild(buildMap(results));
+    const ul = el("ul", "card-grid");
+    results.forEach((p, i) => ul.appendChild(buildCard(p, i)));
+    box.appendChild(ul);
+  }
+
+  $("#results").hidden = false;
+  $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ------------------------------------------------------------
+   단계 전환
+   ------------------------------------------------------------ */
+function goStep(n) {
+  $("#step1").hidden = n !== 1;
+  $("#step2").hidden = n !== 2;
+  $("#progressLabel").textContent = `${n} / 2 단계`;
+  $("#quiz").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ------------------------------------------------------------
+   이메일 수집 (S4)
+   ------------------------------------------------------------ */
+/**
+ * ⚠️ 배포 전 교체 지점.
+ * 지금은 브라우저 localStorage 에만 저장하므로 운영자에게 전달되지 않는다.
+ * Formspree / Google Form / 자체 엔드포인트로 이 함수 본문만 바꾸면 된다.
+ */
+async function submitEmail(email) {
+  const key = "bbaego:subscribers";
+  const list = JSON.parse(localStorage.getItem(key) || "[]");
+  list.push({ email, at: new Date().toISOString() });
+  localStorage.setItem(key, JSON.stringify(list));
+  return true;
+}
+
+function wireEmailForm() {
+  const form  = $("#emailForm");
+  const input = $("#email");
+  const error = $("#emailError");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const value = input.value.trim();
+    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+
+    if (!valid) {
+      // 색만으로 오류를 전달하지 않는다 — 텍스트 병기 (DESIGN 2.3)
+      error.textContent = "이메일 주소를 다시 확인해 주세요.";
+      input.setAttribute("aria-invalid", "true");
+      input.focus();
+      return;
+    }
+
+    error.textContent = "";
+    input.removeAttribute("aria-invalid");
+    await submitEmail(value);
+
+    form.hidden = true;
+    $("#privacyNote").hidden = true;
+    $("#ctaDone").hidden = false;   // role="status" 라 포커스 이동 없이 안내된다
+  });
+
+  input.addEventListener("input", () => {
+    if (input.getAttribute("aria-invalid") === "true") {
+      error.textContent = "";
+      input.removeAttribute("aria-invalid");
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   스크롤 진입 모션 (F3 / DESIGN 5.1)
+   S1·S2·S5 에만. 결과(S3)·CTA(S4) 에는 쓰지 않는다.
+   한 번만 실행하고 관찰을 해제한다.
+   ------------------------------------------------------------ */
+function wireReveal() {
+  const targets = [...document.querySelectorAll("[data-reveal]")];
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduced || !("IntersectionObserver" in window)) {
+    targets.forEach(t => t.classList.add("is-in"));
+    return;
+  }
+
+  const io = new IntersectionObserver((entries, obs) => {
+    let staggered = 0;
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      // stagger 최대 3개 × 60ms (DESIGN 5.1)
+      entry.target.style.transitionDelay = `${Math.min(staggered++, 2) * 60}ms`;
+      entry.target.classList.add("is-in");
+      obs.unobserve(entry.target);
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+
+  targets.forEach(t => io.observe(t));
+}
+
+/* ------------------------------------------------------------
+   init
+   ------------------------------------------------------------ */
+function init() {
+  document.title = `${SERVICE_NAME} — 오늘 뭐 먹지?`;
+
+  buildCategoryChips();
+  buildRegionChips();
+  syncStep1();
+  wireReveal();
+  wireEmailForm();
+
+  $("#startBtn").addEventListener("click", () => {
+    goStep(1);
+    document.querySelector("#categoryChips .chip")?.focus();
+  });
+  $("#toStep2").addEventListener("click", () => {
+    goStep(2);
+    document.querySelector("#regionChips .chip")?.focus();
+  });
+  $("#backToStep1").addEventListener("click", () => goStep(1));
+  $("#showResults").addEventListener("click", renderResults);
+
+  $("#restartBtn").addEventListener("click", () => {
+    $("#results").hidden = true;
+    goStep(1);
+    document.querySelector("#categoryChips .chip")?.focus();
+  });
+}
+
+init();
+</script>
+
+</body>
+</html>
