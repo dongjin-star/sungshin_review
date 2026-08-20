@@ -109,7 +109,10 @@ saved-panel  saved-title  saved-list  saved-item
 saved-item-name  saved-item-meta  saved-item-remove
 state-loading  state-empty  state-error  state-demo
 ```
+추가 승인 (2026-08-20): `result-card-note` — 시드 폴백일 때 도로명 대신 방문 메모를 담는다. `.result-card-addr` 한 클래스가 두 의미를 갖지 않도록 분리.
+
 기존 클래스 중 재사용 가능: `wrap` `section` `section-head` `eyebrow` `btn` `btn-primary` `btn-secondary` `t-h1` `t-h2` `t-body` `t-note` `t-caption` `t-label` `muted` `sr-only`
+**+ 추가 승인 (2026-08-20)**: `masthead` `wordmark` `footer` `footer-rows` — 두 페이지가 같은 서비스로 보여야 하므로 `search.html` 도 같은 헤더·푸터 크롬을 쓴다.
 
 ---
 
@@ -146,6 +149,15 @@ state-loading  state-empty  state-error  state-demo
 ```
 
 **규칙: `author` 또는 `visitedAt` 이 `null` 인 객체는 절대 `.card` 로 렌더하지 않는다.** `.result-card` 전용이다.
+
+### 2.1 승인된 계약 변경 (2026-08-20)
+
+| 변경 | 사유 | 승인 |
+|---|---|---|
+| `region` 이 `null` 일 수 있다 | 기준점이 `REGIONS` 에서 8km 넘게 떨어지면 `null`. "현재 위치로 찾기"로 부산에서 검색한 결과에 "성수동"이 찍히면 메타 줄이 거짓말이 된다. `null` 이면 클라이언트가 지역을 메타 줄에서 뺀다 | ✅ |
+| `/api/search` 가 카카오에 `category_group_code=FD6` 를 함께 보낸다 | 안 보내면 "김밥"에 학원·부동산이 섞여 온다. 계약 쿼리 파라미터는 그대로 | ✅ |
+| 위시리스트 객체에 `savedAt` 추가 | localStorage 전용, API 응답과 무관 | ✅ |
+| 정적 서빙에서 `.md` 제외 | PRD·CONTRACT 를 dev 서버로 뿌릴 이유가 없다 | ✅ |
 
 `assets/seed.js` 의 `PLACES` 는 `source: "seed"` 이고 `author`/`visitedAt` 이 채워져 있다. 폴백으로 쓸 때도 같은 형태로 취급한다.
 
