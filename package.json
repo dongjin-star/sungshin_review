@@ -1,0 +1,14 @@
+{
+  "name": "bbaego",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "빼고 — 맛집 리뷰 서비스 v1 랜딩페이지 + 맛집 담기",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env server/proxy.mjs",
+    "start": "node --env-file-if-exists=.env server/proxy.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

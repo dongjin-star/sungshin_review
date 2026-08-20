@@ -1,0 +1,10 @@
+# 카카오 REST 키가 여기 들어간다. 이 저장소는 public 이므로 절대 커밋되면 안 된다.
+.env
+.env.local
+
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

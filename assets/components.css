@@ -1,0 +1,384 @@
+/* ============================================================
+   Reset & base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+@media (min-width: 768px) { body { font-size: 16px; } }
+
+img { max-width: 100%; display: block; }
+button { font: inherit; color: inherit; }
+
+/* DESIGN 5.2 — 포커스 링은 절대 제거하지 않는다 */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--pad);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============================================================
+   타이포 스케일 — DESIGN 3.4 (모바일 기본 → 768px에서 데스크톱)
+   명조는 28px 이상에서만 (DESIGN 3.3 / 7.6)
+   ============================================================ */
+.t-display {
+  font-family: var(--font-serif);
+  font-weight: 600; font-size: 34px;
+  letter-spacing: -0.02em; line-height: 1.35;
+  margin: 0;
+}
+.t-h1 {
+  font-family: var(--font-serif);
+  font-weight: 600; font-size: 28px;
+  letter-spacing: -0.02em; line-height: 1.35;
+  margin: 0;
+}
+.t-h2 {
+  font-weight: 600; font-size: 20px;
+  letter-spacing: -0.01em; line-height: 1.4;
+  margin: 0;
+}
+.t-body   { font-size: 15px; font-weight: 400; line-height: 1.65; margin: 0; }
+.t-note   { font-size: 14px; font-weight: 400; line-height: 1.6;  margin: 0; }
+.t-caption{ font-size: 13px; font-weight: 400; line-height: 1.5;  margin: 0; font-variant-numeric: tabular-nums; }
+.t-label  { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; line-height: 1.4; margin: 0; }
+
+@media (min-width: 768px) {
+  .t-display { font-size: 56px; }
+  .t-h1      { font-size: 36px; }
+  .t-h2      { font-size: 22px; }
+  .t-body    { font-size: 16px; }
+}
+
+.muted { color: var(--ink-muted); }
+
+/* ============================================================
+   모션 — DESIGN 5장 / 5.1 (한 번만 실행, 결과 이후 미사용)
+   ============================================================ */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity   var(--duration-enter) var(--ease-out),
+    transform var(--duration-enter) var(--ease-out);
+}
+.js .reveal.is-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   헤더 / 푸터
+   ============================================================ */
+.masthead {
+  padding-block: var(--space-5);
+}
+.wordmark {
+  font-family: var(--font-body);
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.footer {
+  border-top: 1px solid var(--line);
+  padding-block: var(--space-12) var(--space-16);
+  color: var(--ink-muted);
+}
+.footer a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.footer-rows { display: grid; gap: var(--space-2); }
+
+/* ============================================================
+   버튼 — DESIGN 6.4
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out);
+}
+.btn-primary {
+  background: var(--ink); color: var(--on-ink); border: 1px solid var(--ink);
+}
+.btn-primary:hover:not(:disabled) { background: #1E1815; border-color: #1E1815; }
+.btn-secondary {
+  background: transparent; color: var(--ink); border: 1px solid var(--line);
+}
+.btn-secondary:hover { border-color: var(--ink-muted); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+@media (max-width: 599px) {
+  .btn-block { width: 100%; }
+}
+
+/* ============================================================
+   S1 히어로 — DESIGN 6.1
+   ============================================================ */
+.hero {
+  min-height: 82svh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding-block: var(--space-16) var(--space-24);
+  text-align: center;
+}
+.hero-sub {
+  margin-top: var(--space-5);
+  color: var(--ink-muted);
+}
+/* PRD S1 — 서브 카피 2행 고정 */
+.hero-sub br { display: inline; }
+.hero-cta { margin-top: var(--space-12); }  /* 고립이 곧 강조 (DESIGN 6.1) */
+
+.scope-note {
+  margin-top: var(--space-8);
+  color: var(--ink-muted);
+}
+
+/* ============================================================
+   섹션 공통
+   ============================================================ */
+.section { padding-block: var(--space-16); }
+@media (min-width: 768px) { .section { padding-block: var(--space-24); } }
+
+.section-head { margin-bottom: var(--space-8); }
+.eyebrow {
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  margin-bottom: var(--space-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   S2 질문 인터랙션 — DESIGN 6.2
+   ============================================================ */
+.quiz {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+@media (min-width: 768px) { .quiz { padding: var(--space-12); } }
+
+.step[hidden] { display: none; }
+
+.chips {
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: 0; list-style: none;
+}
+.chip {
+  min-height: 44px;               /* DESIGN 6.2 — 44x44 터치 영역 */
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 14px; font-weight: 400;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out);
+}
+.chip:hover { border-color: var(--ink-muted); }
+.chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+/* DESIGN 6.2 — "기억 안 나요"는 한 칸 띄우고 시각적으로 구분 */
+.chip-escape { margin-left: var(--space-4); color: var(--ink-muted); }
+.chip-escape[aria-pressed="true"] { color: var(--on-ink); }
+
+.quiz-foot {
+  margin-top: var(--space-8);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);
+}
+.quiz-hint { color: var(--ink-muted); }
+
+/* ============================================================
+   S3 결과 — DESIGN 6.3 / 6.5
+   결과 영역에는 모션을 쓰지 않는다 (PRD 9장)
+   ============================================================ */
+#results[hidden] { display: none; }
+
+.exclusion-banner {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-8);
+}
+
+.map-frame {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+}
+.map-frame svg { width: 100%; height: auto; display: block; }
+.map-caption {
+  border-top: 1px solid var(--line);
+  padding: var(--space-3) var(--space-4);
+  color: var(--ink-muted);
+}
+
+.card-grid {
+  display: grid; gap: var(--space-5);
+  grid-template-columns: 1fr;
+  padding: 0; margin: 0; list-style: none;
+}
+@media (min-width: 600px)  { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px)  { .card-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: border-color var(--duration-hover) var(--ease-out);
+}
+.card:hover { border-color: var(--ink); }
+
+.card-photo {
+  aspect-ratio: 4 / 3;                     /* DESIGN 6.3 — 4:3 고정 */
+  background: var(--line);                 /* DESIGN 7.2 — 스톡 이미지 대신 단색 블록 */
+  overflow: hidden;
+}
+.card-photo img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform var(--duration-hover) var(--ease-out);
+}
+.card:hover .card-photo img { transform: scale(1.02); }
+@media (prefers-reduced-motion: reduce) {
+  .card:hover .card-photo img { transform: none; }
+}
+
+.card-body {
+  padding: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  flex: 1;
+}
+.card-title-row { display: flex; align-items: baseline; gap: var(--space-2); }
+.card-num {
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  flex: none;
+}
+.card-title {
+  font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+  line-height: 1.4; margin: 0;
+}
+@media (min-width: 768px) { .card-title { font-size: 18px; } }
+
+.card-meta { color: var(--ink-muted); }
+.card-note { color: var(--ink-muted); }
+.card-demoted { color: var(--ink-muted); }
+
+.card-foot {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+}
+
+.results-foot { margin-top: var(--space-8); }
+
+.empty-state {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+.empty-state p + p { margin-top: var(--space-3); }
+
+/* ============================================================
+   S4 전환 CTA
+   ============================================================ */
+.cta { text-align: center; }
+.cta-form {
+  margin-top: var(--space-8);
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  justify-content: center;
+}
+.cta-form[hidden] { display: none; }   /* display:flex 가 [hidden] 을 덮어쓰므로 명시 */
+.cta-input {
+  flex: 1 1 260px;
+  max-width: 360px;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font: inherit; font-size: 15px;
+}
+.cta-input::placeholder { color: var(--ink-muted); opacity: 1; }
+.cta-input:hover { border-color: var(--ink-muted); }
+.cta-input[aria-invalid="true"] { border-color: var(--error); }
+
+.form-error {
+  margin-top: var(--space-3);
+  color: var(--error);
+  min-height: 1.5em;
+}
+.form-error:empty { min-height: 0; }
+
+.privacy-note { margin-top: var(--space-5); color: var(--ink-muted); }
+.cta-done { margin-top: var(--space-8); }
+
+/* ============================================================
+   S5 소개 · 로드맵
+   ============================================================ */
+.about-lines { display: grid; gap: var(--space-4); max-width: 46ch; }
+
+.roadmap {
+  margin-top: var(--space-12);
+  padding: 0; list-style: none;
+  display: grid; gap: 0;
+  border-top: 1px solid var(--line);
+}
+.roadmap li {
+  border-bottom: 1px solid var(--line);
+  padding-block: var(--space-5);
+  display: grid; gap: var(--space-1);
+}
+@media (min-width: 768px) {
+  .roadmap li {
+    grid-template-columns: 140px 1fr;
+    gap: var(--space-5);
+    align-items: baseline;
+  }
+}
+.roadmap-status { color: var(--ink-muted); }

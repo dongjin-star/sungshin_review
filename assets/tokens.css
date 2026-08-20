@@ -1,0 +1,53 @@
+/* ============================================================
+   토큰 — DESIGN.md 8장
+   ============================================================ */
+:root {
+  /* Color */
+  --bg:         #F7F3EC;
+  --surface:    #FFFDF8;
+  --ink:        #2B2320;
+  --ink-muted:  #635850;
+  --line:       #E5DDD1;
+  --on-ink:     #F7F3EC;
+  --dim:        rgba(43, 35, 32, 0.45);
+
+  /* DESIGN 2.3 — 유일하게 허용된 유채색. 폼 에러 전용.
+     --bg 대비 6.0:1 (WCAG AA 통과). 다른 곳에 재사용하지 않는다. */
+  --error:      #8C4A3F;
+
+  /* Typography */
+  --font-serif: "Noto Serif KR", serif;
+  --font-body:  "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* Space (4px scale) */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+  --space-4: 16px;  --space-5: 20px;  --space-6: 24px;
+  --space-8: 32px;  --space-12: 48px; --space-16: 64px;
+  --space-24: 96px;
+
+  /* Radius */
+  --radius-sm:   8px;
+  --radius-md:   10px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease-out:        cubic-bezier(0.2, 0, 0, 1);
+  --duration-enter:  500ms;
+  --duration-hover:  200ms;
+  --duration-state:  150ms;
+
+  /* Layout */
+  --maxw: 1120px;
+  --pad:  20px;
+}
+
+@media (min-width: 768px)  { :root { --pad: 40px; } }
+@media (min-width: 1200px) { :root { --pad: 64px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
