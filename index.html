@@ -38,6 +38,8 @@
 <header class="masthead">
   <div class="wrap">
     <a class="wordmark" href="#top" id="top">빼고<span class="sr-only"> — 홈</span></a>
+    <!-- 랜딩 → 검색 페이지 진입점. 주 버튼(히어로)과 경쟁하지 않도록 보조 링크로 둔다 (DESIGN 6.4) -->
+    <a class="masthead-link" href="./search.html">동네에서 찾아보기</a>
   </div>
 </header>
 
@@ -170,14 +172,16 @@
       </div>
 
       <div class="about-lines t-body muted">
-        <p><strong style="color:var(--ink);font-weight:600">무엇을</strong> — 어제 먹은 메뉴를 알려주면, 겹치지 않는 근처 가게를 골라드려요.</p>
-        <p><strong style="color:var(--ink);font-weight:600">왜 다르게</strong> — 검색은 광고를, 지도는 별점을 줍니다. 어제 먹은 것과 다른 것은 아무도 걸러주지 않아요.</p>
-        <p><strong style="color:var(--ink);font-weight:600">앞으로</strong> — 찾아주는 기능보다 <em style="font-style:normal;color:var(--ink)">기록하는 기능이 먼저</em> 열립니다. 이 지도를 채우는 건 당신의 한 끼예요.</p>
+        <p><strong class="about-key">무엇을</strong> — 어제 먹은 메뉴를 알려주면, 겹치지 않는 근처 가게를 골라드려요.</p>
+        <!-- 검색 페이지가 생긴 뒤로 "검색은 광고를 준다"고 쓰면 제품이 자기모순이 된다.
+             반대하는 건 광고가 먼저 뜨는 검색이지 찾기 자체가 아니다. -->
+        <p><strong class="about-key">왜 다르게</strong> — 찾는 방법이 없어서가 아니라, 검색창엔 광고가 지도엔 별점이 먼저 떠서예요. 어제 먹은 것과 겹치지 않게 골라주는 곳은 없었고요.</p>
+        <p><strong class="about-key">앞으로</strong> — 찾아주는 기능보다 <em class="about-em">기록하는 기능이 먼저</em> 열립니다. 이 지도를 채우는 건 당신의 한 끼예요.</p>
       </div>
 
       <ul class="roadmap">
         <li>
-          <p class="roadmap-status t-label">개발 중</p>
+          <p class="roadmap-status t-label">열렸어요</p>
           <p class="t-body">동네별 목록과 검색 · 필터</p>
         </li>
         <li>
@@ -185,8 +189,8 @@
           <p class="t-body">다녀온 곳 기록하기 — 사진 한 장과 상황 태그로 1분 안에</p>
         </li>
         <li>
-          <p class="roadmap-status t-label">개발 중</p>
-          <p class="t-body">가고 싶은 곳 저장 · 내 지도로 모아보기</p>
+          <p class="roadmap-status t-label">열렸어요</p>
+          <p class="t-body">가고 싶은 곳 담기 — 담은 목록으로 모아보기</p>
         </li>
         <li>
           <p class="roadmap-status t-label">구상 중</p>

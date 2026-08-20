@@ -19,15 +19,27 @@
   --font-serif: "Noto Serif KR", serif;
   --font-body:  "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
+  /* Type scale — DESIGN 3.4
+     명조(--font-serif)는 --fs-32 이상에서만 쓴다. 그 아래는 전부 산세리프.
+     display(56/34) 와 h1(36/28) 은 명조 전용이라 스케일 밖에서 관리한다. */
+  --fs-12: 12px;   /* label — 칩, 카테고리 */
+  --fs-13: 13px;   /* caption — 거리, 방문일, 작성자 */
+  --fs-14: 14px;   /* note — 한 줄 메모, 칩 라벨 */
+  --fs-16: 16px;   /* body */
+  --fs-18: 18px;   /* card-title */
+  --fs-22: 22px;   /* h2 — 섹션 제목 */
+  --fs-32: 32px;   /* 명조 허용 하한 (28px 이상 규칙의 실사용 값) */
+
   /* Space (4px scale) */
   --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
   --space-4: 16px;  --space-5: 20px;  --space-6: 24px;
   --space-8: 32px;  --space-12: 48px; --space-16: 64px;
   --space-24: 96px;
 
-  /* Radius */
+  /* Radius — 입력·버튼 8px, 카드 12px, 칩 pill */
   --radius-sm:   8px;
-  --radius-md:   10px;
+  --radius-md:   12px;   /* 카드. 에어비앤비 리듬에 맞춰 10 → 12 (DESIGN 4장 동기화) */
+  --radius-lg:   16px;   /* 패널(담은 목록·상태 박스) */
   --radius-pill: 999px;
 
   /* Motion */
@@ -37,12 +49,19 @@
   --duration-state:  150ms;
 
   /* Layout */
-  --maxw: 1120px;
-  --pad:  20px;
+  --maxw:   1120px;
+  --pad:    20px;   /* 좌우 여백 — DESIGN 4장 */
+  --gutter: 24px;   /* 카드 그리드 거터 (= --space-6) */
 }
 
+/* ------------------------------------------------------------
+   브레이크포인트 — 375 / 768 / 1440 세 개만 쓴다 (CLAUDE.md · CONTRACT 6)
+   375 는 모바일 기본값이라 미디어쿼리가 없다(= 하한). 320px 에서도
+   --pad 20px + 1열 그리드로 깨지지 않는 것이 설계 기준이다 (PRD 9장).
+   기존의 599/600/900/1200 은 전부 이 세 값으로 정리했다.
+   ------------------------------------------------------------ */
 @media (min-width: 768px)  { :root { --pad: 40px; } }
-@media (min-width: 1200px) { :root { --pad: 64px; } }
+@media (min-width: 1440px) { :root { --pad: 64px; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

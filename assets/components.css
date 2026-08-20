@@ -8,15 +8,25 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 15px;
+  /* 타입 스케일을 12/14/16/18/22/32 로 정리하면서 본문 15px 을 없앴다.
+     길 위에서 읽는 화면이라 모바일에서도 16px 이 낫다 (DESIGN 2.1 주석과 같은 이유). */
+  font-size: var(--fs-16);
   font-weight: 400;
   line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
-@media (min-width: 768px) { body { font-size: 16px; } }
 
 img { max-width: 100%; display: block; }
 button { font: inherit; color: inherit; }
+
+/* 브라우저 기본 링크색(#0000EE 파랑 / 방문 보라)은 DESIGN 7.3 의 유채색 금지에
+   정면으로 걸린다. 클래스를 안 붙인 <a> 가 어느 페이지에 생겨도 무채색으로
+   떨어지도록 리셋에서 막는다 — 클래스 규칙을 하나씩 붙이는 방식은 구멍이 남는다.
+   색은 부모에서 상속받는다: 본문 안에서는 --ink, .muted 문단 안에서는 --ink-muted.
+   밑줄은 남긴다 — 색으로 구분하지 않기로 한 이상 링크임을 알리는 수단이 밑줄뿐이다.
+   밑줄이 필요 없는 링크(워드마크·버튼형)는 개별 클래스에서 끈다. */
+a { color: inherit; text-underline-offset: 3px; }
+a:visited { color: inherit; }
 
 /* DESIGN 5.2 — 포커스 링은 절대 제거하지 않는다 */
 :focus-visible {
@@ -50,28 +60,38 @@ button { font: inherit; color: inherit; }
 }
 .t-h1 {
   font-family: var(--font-serif);
-  font-weight: 600; font-size: 28px;
+  font-weight: 600; font-size: 28px;   /* 명조 하한. 이 아래로 내리지 않는다 (DESIGN 7.6) */
   letter-spacing: -0.02em; line-height: 1.35;
   margin: 0;
 }
 .t-h2 {
-  font-weight: 600; font-size: 20px;
+  font-weight: 600; font-size: var(--fs-18);
   letter-spacing: -0.01em; line-height: 1.4;
   margin: 0;
 }
-.t-body   { font-size: 15px; font-weight: 400; line-height: 1.65; margin: 0; }
-.t-note   { font-size: 14px; font-weight: 400; line-height: 1.6;  margin: 0; }
-.t-caption{ font-size: 13px; font-weight: 400; line-height: 1.5;  margin: 0; font-variant-numeric: tabular-nums; }
-.t-label  { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; line-height: 1.4; margin: 0; }
+.t-body   { font-size: var(--fs-16); font-weight: 400; line-height: 1.65; margin: 0; }
+.t-note   { font-size: var(--fs-14); font-weight: 400; line-height: 1.6;  margin: 0; }
+.t-caption{ font-size: var(--fs-13); font-weight: 400; line-height: 1.5;  margin: 0; font-variant-numeric: tabular-nums; }
+.t-label  { font-size: var(--fs-12); font-weight: 600; letter-spacing: 0.06em; line-height: 1.4; margin: 0; }
+
+/* 375 하한 아래(320~374) — 34px 명조 헤드가 줄바꿈되지 않게 한 단계 낮춘다 */
+@media (max-width: 374px) {
+  .t-display { font-size: var(--fs-32); }
+}
 
 @media (min-width: 768px) {
   .t-display { font-size: 56px; }
   .t-h1      { font-size: 36px; }
-  .t-h2      { font-size: 22px; }
-  .t-body    { font-size: 16px; }
+  .t-h2      { font-size: var(--fs-22); }
 }
 
 .muted { color: var(--ink-muted); }
+
+/* 국문은 기본값(break-all 유사)이라 "막습니 / 다." 처럼 어절 중간에서 끊긴다.
+   헤드와 가게 이름은 어절 단위로만 넘긴다. 375 이하에서 특히 크게 티가 난다. */
+.t-display, .t-h1, .t-h2,
+.card-title, .result-card-title,
+.exclusion-banner, .empty-state { word-break: keep-all; }
 
 /* ============================================================
    모션 — DESIGN 5장 / 5.1 (한 번만 실행, 결과 이후 미사용)
@@ -91,17 +111,44 @@ button { font: inherit; color: inherit; }
 
 /* ============================================================
    헤더 / 푸터
+   ------------------------------------------------------------
+   index.html 과 search.html 이 공유하는 크롬이다. 두 페이지가 같은
+   서비스로 보이려면 양쪽 다 이 마크업을 쓴다.
+
+     <header class="masthead">
+       <div class="wrap"> …워드마크 / 보조 링크… </div>
+     </header>
+
+   ⚠️ .masthead 는 자식으로 .wrap 을 전제한다. .wrap 이 없으면 좌우 여백과
+   양끝 정렬이 걸리지 않는다 (padding 만 적용된다). .footer 도 동일하다.
    ============================================================ */
 .masthead {
   padding-block: var(--space-5);
 }
 .wordmark {
-  font-family: var(--font-body);
-  font-size: 15px; font-weight: 600;
+  font-family: var(--font-body);   /* 명조 금지 — 28px 미만이다 (DESIGN 7.6) */
+  font-size: var(--fs-16); font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--ink);
-  text-decoration: none;
+  text-decoration: none;           /* 워드마크는 밑줄을 끈다 */
 }
+
+/* 헤더 우측 — 검색 페이지 진입점 */
+.masthead .wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4);
+}
+.masthead-link {
+  color: var(--ink-muted);
+  font-size: var(--fs-14);
+  font-weight: 400;
+  text-decoration: none;   /* 밑줄 대신 hover 시 하단 보더로 반응한다 */
+  padding-block: var(--space-2);
+  border-bottom: 1px solid transparent;
+  transition: color var(--duration-state) var(--ease-out),
+              border-color var(--duration-state) var(--ease-out);
+}
+.masthead-link:hover { color: var(--ink); border-bottom-color: var(--line); }
 
 .footer {
   border-top: 1px solid var(--line);
@@ -119,7 +166,7 @@ button { font: inherit; color: inherit; }
   min-height: 48px;
   padding: 0 var(--space-6);
   border-radius: var(--radius-sm);
-  font-size: 15px; font-weight: 600;
+  font-size: var(--fs-16); font-weight: 600;
   cursor: pointer;
   transition: background-color var(--duration-state) var(--ease-out),
               border-color     var(--duration-state) var(--ease-out),
@@ -135,7 +182,8 @@ button { font: inherit; color: inherit; }
 .btn-secondary:hover { border-color: var(--ink-muted); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-@media (max-width: 599px) {
+/* 모바일에서 주 버튼은 가로 꽉 참 (DESIGN 6.4). 768 부터 내용 폭 */
+@media (max-width: 767px) {
   .btn-block { width: 100%; }
 }
 
@@ -200,7 +248,7 @@ button { font: inherit; color: inherit; }
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--line);
-  font-size: 14px; font-weight: 400;
+  font-size: var(--fs-14); font-weight: 400;
   cursor: pointer;
   transition: background-color var(--duration-state) var(--ease-out),
               color            var(--duration-state) var(--ease-out),
@@ -251,14 +299,17 @@ button { font: inherit; color: inherit; }
   color: var(--ink-muted);
 }
 
+/* 375 → 1열 / 768 → 2열 / 1440 → 3열, 거터 24px */
 .card-grid {
-  display: grid; gap: var(--space-5);
+  display: grid; gap: var(--gutter);
   grid-template-columns: 1fr;
   padding: 0; margin: 0; list-style: none;
 }
-@media (min-width: 600px)  { .card-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 900px)  { .card-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 768px)  { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1440px) { .card-grid { grid-template-columns: repeat(3, 1fr); } }
 
+/* .card = 다녀온 기록. 채워진 --surface + 4:3 실사진 + 작성자·방문일.
+   카카오 검색 결과는 이 카드로 렌더하지 않는다 → .result-card (CONTRACT 1.3) */
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -292,14 +343,14 @@ button { font: inherit; color: inherit; }
 .card-num {
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
-  font-size: 13px;
+  font-size: var(--fs-13);
   flex: none;
 }
 .card-title {
-  font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+  font-size: var(--fs-16); font-weight: 600; letter-spacing: -0.01em;
   line-height: 1.4; margin: 0;
 }
-@media (min-width: 768px) { .card-title { font-size: 18px; } }
+@media (min-width: 768px) { .card-title { font-size: var(--fs-18); } }
 
 .card-meta { color: var(--ink-muted); }
 .card-note { color: var(--ink-muted); }
@@ -342,7 +393,7 @@ button { font: inherit; color: inherit; }
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font: inherit; font-size: 15px;
+  font: inherit; font-size: var(--fs-16);
 }
 .cta-input::placeholder { color: var(--ink-muted); opacity: 1; }
 .cta-input:hover { border-color: var(--ink-muted); }
@@ -362,6 +413,8 @@ button { font: inherit; color: inherit; }
    S5 소개 · 로드맵
    ============================================================ */
 .about-lines { display: grid; gap: var(--space-4); max-width: 46ch; }
+.about-key { color: var(--ink); font-weight: 600; }
+.about-em  { color: var(--ink); font-style: normal; }
 
 .roadmap {
   margin-top: var(--space-12);
@@ -382,3 +435,446 @@ button { font: inherit; color: inherit; }
   }
 }
 .roadmap-status { color: var(--ink-muted); }
+
+
+/* ════════════════════════════════════════════════════════════
+   검색 페이지 (search.html) — CONTRACT.md 1절
+   ------------------------------------------------------------
+   이 블록의 클래스명은 계약이다. 이름을 바꾸면 logic 의 search.html
+   이 전부 깨진다. 추가가 필요하면 CONTRACT.md 를 먼저 고친다.
+
+   에어비앤비에서 가져온 것: 상단 sticky 알약형 검색바, 카드 그리드
+   (1/2/3열), 24px 거터, 12px 카드 라운드, 1px stroke 아이콘.
+   버린 것: 코랄 액센트, box-shadow, 별점·리뷰수, 선호 뱃지, 하트,
+   캐러셀 도트, 할인·인기 뱃지, **가로 스크롤 카테고리 행**(DESIGN 6.2).
+   계층은 전부 1px --line 보더로 낸다.
+   ════════════════════════════════════════════════════════════ */
+
+/* ------------------------------------------------------------
+   1.1 검색 바 — 상단 sticky, 알약형 필드 (형태만 차용, 무채색)
+   ------------------------------------------------------------ */
+.search-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  /* sticky 는 배경이 불투명해야 한다. --bg 라 페이지와 같은 톤이고
+     경계는 아래 1px --line 이 낸다 (그림자 금지 — DESIGN 7.4) */
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.search-input {
+  flex: 1 1 100%;
+  min-width: 0;                /* 320px 에서 넘치지 않게 */
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--fs-16);
+  font-weight: 400;
+}
+.search-input::placeholder { color: var(--ink-muted); opacity: 1; }
+.search-input:hover { border-color: var(--ink-muted); }
+/* iOS 가 붙이는 기본 취소 버튼 제거 — 무채색 규칙과 무관한 시스템 UI */
+.search-input::-webkit-search-decoration,
+.search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.search-submit,
+.search-geo {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out);
+}
+.search-submit {
+  background: var(--ink);
+  color: var(--on-ink);
+  border: 1px solid var(--ink);
+}
+.search-submit:hover:not(:disabled) { background: #1E1815; border-color: #1E1815; }
+.search-geo {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.search-geo:hover:not(:disabled) { border-color: var(--ink-muted); }
+.search-submit:disabled,
+.search-geo:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 아이콘을 넣는다면 인라인 SVG 1px stroke + currentColor 만 (유채색 금지) */
+.search-geo svg,
+.search-submit svg,
+.filter-chip svg,
+.btn-save svg {
+  width: 18px; height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 768px) {
+  .search-bar { padding-block: var(--space-4); gap: var(--space-3); }
+  .search-input { flex: 1 1 320px; }
+  .search-submit, .search-geo { flex: 0 0 auto; }
+}
+
+/* ------------------------------------------------------------
+   1.2 카테고리 필터 — 줄바꿈 행 (가로 스크롤 아님)
+   에어비앤비의 가로 스크롤 카테고리 행은 **채택하지 않는다.**
+   DESIGN 6.2 가 근거까지 달아 금지했다 — "가려진 선택지는 없는 선택지다".
+   화면을 한정하는 조건이 아니라 선택지 가시성의 일반 원칙이고,
+   검색 필터는 결과를 좁히는 주 수단이라 퀴즈 칩보다 더 강하게 걸린다.
+   칩은 S2 와 같은 seed.js CATEGORIES 8개라 375px 에서 2~3행으로 흐른다.
+   ------------------------------------------------------------ */
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.filter-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;                 /* DESIGN 6.2 — 44px 터치 영역 */
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: var(--fs-14);
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out);
+}
+.filter-chip:hover { border-color: var(--ink-muted); }
+/* 선택 상태는 aria-pressed 만으로 표현한다 (CONTRACT 1.2). 채움 반전 — 색이 아니라 명암이 뒤집힌다 */
+.filter-chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+
+/* ------------------------------------------------------------
+   1.3 결과 카드 — .card 가 아니다
+   ------------------------------------------------------------
+   .card 는 "다녀온 기록"이다: --surface 로 채워지고 4:3 실사진이 들어가며
+   하단에 작성자·방문일이 붙는다 (DESIGN 6.3 / PRD 10.5).
+   .result-card 는 카카오 장소 정보다. 작성자도 방문일도 사진도 없다.
+   같은 모양으로 그리면 신뢰 카피가 거짓이 된다 (CONTRACT 1.3).
+
+   그래서 세 가지를 의도적으로 다르게 만든다 — 전부 무채색 수단이다:
+     ① 채우지 않는다 — 배경이 --surface 가 아니라 --bg. 기록 카드만 떠 보인다
+     ② 사진 자리를 16:9 로 낮춘다 — 4:3 기록 카드와 리듬이 다르다
+     ③ 점선 — 사진 블록과 origin 줄이 점선이다. "아직 채워지지 않음"의 표시
+   ------------------------------------------------------------ */
+.result-grid {
+  display: grid;
+  gap: var(--gutter);
+  grid-template-columns: 1fr;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+@media (min-width: 768px)  { .result-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1440px) { .result-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.result-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);                    /* ① 채우지 않는다 */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  /* 결과 영역에는 진입 모션·transform 을 쓰지 않는다 (CONTRACT 5).
+     보더 색 전환만 허용한다 — 클릭 가능함을 알리는 최소 신호 */
+  transition: border-color var(--duration-hover) var(--ease-out);
+}
+.result-card:hover,
+.result-card:focus-within { border-color: var(--ink-muted); }
+
+.result-card-photo {
+  aspect-ratio: 16 / 9;                     /* ② 기록 카드(4:3)보다 낮다 */
+  background: var(--line);                  /* DESIGN 7.2 — 스톡 이미지 대신 단색 블록 */
+  border-bottom: 1px dashed var(--line);
+  overflow: hidden;
+}
+.result-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+.result-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.result-card-title {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--ink);
+}
+@media (min-width: 768px) { .result-card-title { font-size: var(--fs-18); } }
+
+.result-card-meta {
+  margin: 0;
+  font-size: var(--fs-13);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.result-card-addr {
+  margin: 0;
+  font-size: var(--fs-13);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  overflow-wrap: anywhere;   /* 도로명 주소가 길어도 카드를 밀지 않게 */
+}
+
+/* 시드 폴백일 때만 나오는 한 줄 방문 메모. 주소(.result-card-addr)와 섞지 않는다 —
+   한쪽은 기계가 준 위치 정보고, 한쪽은 사람이 쓴 문장이다.
+   .card-note 와 같은 어법(note 14px / --ink-muted)으로 맞춘다. */
+.result-card-note {
+  margin: 0;
+  font-size: var(--fs-14);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  word-break: keep-all;
+}
+
+/* ③ "이건 다녀온 기록이 아니다" — 이 한 줄이 씨드와 카카오를 가르는 유일한 표시다.
+   조용하되(캡션 크기·muted) 분명하게(점선 상단선 + 앞 마커) 자리를 차지한다. */
+.result-card-origin {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--line);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+}
+.result-card-origin::before {
+  content: "";
+  flex: none;
+  width: 6px; height: 6px;
+  border: 1px solid var(--ink-muted);
+  border-radius: var(--radius-pill);
+  transform: translateY(-1px);
+}
+
+.result-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-4);
+}
+.result-card-link {
+  color: var(--ink-muted);
+  font-size: var(--fs-13);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.result-card-link:hover { color: var(--ink); }
+
+/* 담기 버튼 — 하트를 쓴다면 --ink stroke 로. 코랄 금지 */
+.btn-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--duration-state) var(--ease-out),
+              color            var(--duration-state) var(--ease-out),
+              border-color     var(--duration-state) var(--ease-out);
+}
+.btn-save:hover { border-color: var(--ink-muted); }
+.btn-save[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+
+/* ------------------------------------------------------------
+   1.4 담은 목록 (위시리스트)
+   개수 표기는 허용된다 — 내가 담은 수는 사회적 증거가 아니다 (CONTRACT 5).
+   타인의 저장 수·순위는 여전히 금지.
+   ------------------------------------------------------------ */
+.saved-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+.saved-panel[hidden] { display: none; }   /* display 를 주는 요소라 명시 필요 */
+
+.saved-title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-16);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.saved-list {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+.saved-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.saved-item-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink);
+}
+.saved-item-meta {
+  flex: 1 1 100%;
+  font-size: var(--fs-12);
+  font-weight: 400;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.saved-item-remove {
+  flex: none;
+  order: 2;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  cursor: pointer;
+  transition: color var(--duration-state) var(--ease-out),
+              border-color var(--duration-state) var(--ease-out);
+}
+.saved-item-remove:hover { color: var(--ink); border-color: var(--ink-muted); }
+
+@media (min-width: 768px) {
+  .saved-panel { padding: var(--space-6); }
+  .saved-item-meta { flex: 0 1 auto; }
+}
+
+/* ------------------------------------------------------------
+   1.5 상태 화면
+   로딩 shimmer 를 쓰지 않는다 (DESIGN 5장) — 정적 플레이스홀더.
+   .state-error 에도 --error 를 쓰지 않는다. 그 색은 폼 에러 전용이고,
+   검색 실패는 폼 입력 오류가 아니다 (DESIGN 2.3 / CONTRACT 5).
+   ------------------------------------------------------------ */
+.state-loading,
+.state-empty,
+.state-error,
+.state-demo {
+  border-radius: var(--radius-md);
+  font-size: var(--fs-14);
+  font-weight: 400;
+  line-height: 1.65;
+}
+.state-loading[hidden], .state-empty[hidden],
+.state-error[hidden],   .state-demo[hidden] { display: none; }
+
+.state-loading {
+  padding: var(--space-12) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  text-align: center;
+}
+/* 0건은 사용자가 막힌 지점이다. 안내 문장보다 **다음 수**가 눈에 들어와야 한다
+   (검색어 지우기 · 반경 넓히기). 버튼이 2~3개 오므로 세로로 쌓아 중앙 정렬한다.
+   가로 배치는 320px 에서 버튼 라벨이 깨지고, 이 화면은 폭이 좁을 때 더 자주 나온다. */
+.state-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-12) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  text-align: center;
+}
+.state-empty .btn { margin-top: var(--space-2); }
+/* 버튼을 div 로 감싸 오는 경우도 같은 리듬으로 받는다 */
+.state-empty > div { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-2); }
+.state-empty strong { display: block; color: var(--ink); font-weight: 600; font-size: var(--fs-16); }
+.state-empty p { margin: 0; }
+
+/* 실패는 조용하되 놓치면 안 된다 — 제외 배너와 같은 좌측 세로선 어법 */
+.state-error {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+}
+/* 씨드 폴백 중 — 점선으로 "임시 상태"임을 알린다 */
+.state-demo {
+  padding: var(--space-4) var(--space-5);
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--ink-muted);
+}
+.state-demo strong { color: var(--ink); font-weight: 600; }
