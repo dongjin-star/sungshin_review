@@ -17,9 +17,14 @@ export function metersBetween(origin, target) {
   return Math.hypot(dLat, dLng);
 }
 
-/** 기준점에서 도보 몇 분인지. 도보 약 67m/분. */
+/** 미터 → 도보 분. 도보 약 67m/분. */
+export function walkMinutesFromMeters(meters) {
+  return Math.max(1, Math.round(Number(meters) / 67));
+}
+
+/** 기준점에서 도보 몇 분인지. 계산식은 원본과 동일하다. */
 export function walkMinutes(origin, target) {
-  return Math.max(1, Math.round(metersBetween(origin, target) / 67));
+  return walkMinutesFromMeters(metersBetween(origin, target));
 }
 
 export const formatDate = (iso) => iso.replaceAll("-", ".");
