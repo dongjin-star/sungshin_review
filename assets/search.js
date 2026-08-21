@@ -65,7 +65,6 @@ const el = (tag, cls, text) => {
 };
 
 const labelOf   = (code) => (CATEGORIES.find(c => c.code === code) || {}).label || "";
-const regionOf  = (code) => (REGIONS.find(r => r.code === code) || {}).label || "";
 const radius    = () => RADIUS_STEPS[state.radiusStep];
 const radiusText = (m) => (m >= 1000 ? `${m / 1000}km` : `${m}m`);
 
@@ -532,8 +531,9 @@ function metaLine(place) {
   const cat = place.category ? labelOf(place.category) : (place.categoryLabel || "");
   if (cat) parts.push(cat);
 
-  const region = regionOf(place.region);
-  if (region) parts.push(region);
+  // 지역은 메타 줄에서 뺐다 (2026-08-22). 기준점이 성수동이라 먼 결과에도 "성수동"이
+  // 붙어 읽는 사람에게 서비스가 성수동 전용처럼 보였다. 위치는 .result-card-addr 의
+  // 도로명이 알려준다 — 그래서 그 줄은 지우면 안 된다.
 
   // 카카오가 distance 를 주면 그 값을 우선 쓴다. 문구 결정은 geo.js 가 한다 —
   // 전국 검색이라 도보로 갈 수 없는 거리가 섞여 들어온다.
