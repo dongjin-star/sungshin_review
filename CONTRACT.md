@@ -7,14 +7,15 @@
 
 ## 0. 파일 소유권 — 자기 소유가 아닌 파일은 **읽기만** 한다
 
+> **2026-08-21 개정.** 랜딩(`index.html` S1~S6)과 `assets/app.js` 가 삭제되고 `search.html` 이 `index.html` 로 올라갔다.
+> `design` 소유 파일에서 HTML 이 빠졌다 — 남은 유일한 페이지는 `logic` 소유다. 상세는 PRD 4.2.
+
 | 파일 | 소유자 |
 |---|---|
-| `index.html` | **design** |
 | `assets/tokens.css` | **design** |
 | `assets/components.css` | **design** |
-| `assets/app.js` | **design** |
 | `review_design.md` | **design** |
-| `search.html` | **logic** |
+| `index.html` (검색·담기) | **logic** |
 | `assets/search.js` | **logic** |
 | `assets/search.css` (레이아웃 전용) | **logic** |
 | `assets/seed.js` | **logic** |
@@ -28,7 +29,7 @@
 
 ## 1. 검색 페이지 컴포넌트 클래스
 
-`design` 이 `assets/components.css` 에 **미리** 정의한다. `logic` 은 `search.html` 에서 이 이름만 쓴다.
+`design` 이 `assets/components.css` 에 **미리** 정의한다. `logic` 은 `index.html` 에서 이 이름만 쓴다.
 
 ### 1.1 검색 바
 ```html
@@ -112,7 +113,9 @@ state-loading  state-empty  state-error  state-demo
 추가 승인 (2026-08-20): `result-card-note` — 시드 폴백일 때 도로명 대신 방문 메모를 담는다. `.result-card-addr` 한 클래스가 두 의미를 갖지 않도록 분리.
 
 기존 클래스 중 재사용 가능: `wrap` `section` `section-head` `eyebrow` `btn` `btn-primary` `btn-secondary` `t-h1` `t-h2` `t-body` `t-note` `t-caption` `t-label` `muted` `sr-only`
-**+ 추가 승인 (2026-08-20)**: `masthead` `wordmark` `footer` `footer-rows` — 두 페이지가 같은 서비스로 보여야 하므로 `search.html` 도 같은 헤더·푸터 크롬을 쓴다.
+**+ 추가 승인 (2026-08-20)**: `masthead` `wordmark` `footer` `footer-rows` — 두 페이지가 같은 서비스로 보여야 하므로 `search.html` 도 같은 헤더·푸터 크롬을 썼다. 2026-08-21 랜딩 삭제 후에도 이 크롬은 그대로 남는다 (`masthead-link` 는 랜딩→검색 진입점이었으므로 쓰이지 않는다).
+
+랜딩 전용이던 `.card` `.hero` `.quiz` `.chips` `.cta-form` `.roadmap` `.exclusion-banner` 등은 **더 이상 어떤 페이지도 쓰지 않는다.** `components.css` 에는 규칙이 남아 있지만 계약 대상이 아니다.
 
 ---
 
@@ -167,8 +170,16 @@ state-loading  state-empty  state-error  state-demo
 
 | 엔드포인트 | 쿼리 | 응답 |
 |---|---|---|
-| `GET /api/search` | `q` (필수), `x`, `y`, `radius`, `page` | `{ places: [...], meta: { total, isEnd, page } }` |
-| `GET /api/category` | `group` (기본 `FD6`), `x`, `y`, `radius`, `page` | 동일 |
+| `GET /api/search` | `q` (필수), `x`, `y`, `radius`(선택), `page` | `{ places: [...], meta: { total, isEnd, page } }` |
+| `GET /api/category` | `group` (기본 `FD6`), `x`, `y`, `radius`(기본 1000), `page` | 동일 |
+
+**`radius` 는 두 엔드포인트에서 뜻이 다르다 (2026-08-21 개정).**
+
+- `/api/search` — **안 보내는 게 기본이고, 그러면 전국이다.** 보내면 그 반경으로 좁힌다.
+  클라이언트는 보내지 않는다. `x`/`y` 는 계속 보낸다 — 카카오가 지역어 없는 질의는
+  기준점 근처로, `"부산 돼지국밥"` 같은 질의는 그 지역으로 알아서 넘긴다.
+- `/api/category` — **반경이 본질이다.** "근처에 뭐 있지"를 답하는 엔드포인트이고,
+  카카오 카테고리 검색은 반경이 0이면 결과를 주지 않는다. 안 보내면 1000m 로 본다.
 
 에러 응답:
 

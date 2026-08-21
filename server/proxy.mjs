@@ -215,12 +215,19 @@ function num(value, name, { min, max, required = false, fallback = null }) {
   return n;
 }
 
-/** 두 엔드포인트가 공유하는 위치 파라미터. 없으면 REGIONS[0] 기준점. */
+/**
+ * 두 엔드포인트가 공유하는 위치 파라미터. 없으면 REGIONS[0] 기준점.
+ *
+ * radius 는 **기본값이 없다** (`null`). 두 엔드포인트가 반경을 다르게 다루기 때문이다.
+ * 카테고리 검색은 "근처에 뭐 있지"라 반경이 본질이지만, 키워드 검색에 반경을 걸면
+ * "부산 돼지국밥"이 성수동 1km 밖이라는 이유로 0건이 된다. 아래 handleSearch 참조.
+ */
 function readLocation(sp) {
   const home = REGIONS[0];
   const x = num(sp.get("x"), "x", { min: -180, max: 180, fallback: home.lng });
   const y = num(sp.get("y"), "y", { min: -90,  max: 90,  fallback: home.lat });
-  const radius = Math.round(num(sp.get("radius"), "radius", { min: 0, max: 20000, fallback: 1000 }));
+  const rawRadius = num(sp.get("radius"), "radius", { min: 0, max: 20000, fallback: null });
+  const radius = rawRadius == null ? null : Math.round(rawRadius);
   const page = Math.round(num(sp.get("page"), "page", { min: 1, max: 45, fallback: 1 }));
   return { x, y, radius, page, origin: { lat: y, lng: x } };
 }
@@ -305,8 +312,17 @@ async function handleSearch(res, sp) {
   if (q.length > 80) throw new BadRequest("검색어가 너무 깁니다.");
 
   const { x, y, radius, page, origin } = readLocation(sp);
+
+  // 반경은 클라이언트가 명시적으로 보낼 때만 건다. 기본은 "전국"이다.
+  //
+  // x/y 는 그대로 보낸다 — 버리면 안 된다. 카카오는 좌표만 있고 반경이 없으면
+  // 지역어가 없는 질의("파스타")는 좌표에서 가까운 순으로, 지역어가 있는 질의
+  // ("부산 돼지국밥")는 그 지역으로 알아서 넘긴다. 실측:
+  //   파스타 + 성수동 x/y, 반경 없음        → 성수동 결과
+  //   부산 돼지국밥 + 성수동 x/y, 반경 없음 → 부산 결과
+  //   부산 돼지국밥 + 성수동 x/y, 반경 1km  → 0건   ← 반경을 걸면 이렇게 된다
   const data = await callKakao(KAKAO_KEYWORD, {
-    query: q, x, y, radius, page, size: 15, category_group_code: "FD6"
+    query: q, x, y, radius: radius || null, page, size: 15, category_group_code: "FD6"
   });
   sendJson(res, 200, toPayload(data, origin, page));
 }
@@ -384,8 +400,6 @@ function sendText(res, status, text) {
 
 server.listen(PORT, () => {
   console.log(`빼고 dev server → http://localhost:${PORT}/`);
-  console.log(`  랜딩  http://localhost:${PORT}/index.html`);
-  console.log(`  검색  http://localhost:${PORT}/search.html`);
   console.log(readKey()
     ? "  카카오 키 감지됨 — /api/* 가 실서비스 데이터를 씁니다."
     : "  카카오 키 없음 — /api/* 는 503 NO_KEY 를 돌려주고, 화면은 씨드 12곳으로 동작합니다.");

@@ -27,13 +27,18 @@
    ============================================================ */
 
 import { CATEGORIES, REGIONS, PLACES } from "./seed.js";
-import { metersBetween, walkMinutes, walkMinutesFromMeters, formatDate } from "./geo.js";
+import { metersBetween, distanceText, formatDate } from "./geo.js";
 
 const WISHLIST_KEY = "bbaego:wishlist";
 const DEBOUNCE_MS  = 300;
 
 /* 반경은 단계로만 넓힌다. 0건일 때 "더 넓게 찾기"가 밟는 사다리다. */
 const RADIUS_STEPS = [1000, 2000, 5000, 10000, 20000];
+
+/* 카카오 로컬은 size=15 · page 3 에서 끝난다(45곳이 상한). 1페이지만 받으면
+   반경 안에 45곳이 있어도 15곳만 보이고, 칩 필터가 그 15곳 안에서만 돌아
+   "일식 0건" 같은 거짓 0건이 나온다. */
+const MAX_PAGES = 3;
 
 const HOME = REGIONS[0];
 
@@ -61,7 +66,8 @@ const radius    = () => RADIUS_STEPS[state.radiusStep];
 const radiusText = (m) => (m >= 1000 ? `${m / 1000}km` : `${m}m`);
 
 /* ------------------------------------------------------------
-   담은 목록 — localStorage. app.js:submitEmail 과 같은 패턴이다.
+   담은 목록 — localStorage. 읽기·쓰기 양쪽을 try/catch 로 감싼다.
+   사파리 프라이빗 모드나 손상된 값 하나로 페이지가 멈추지 않게 한다.
    ------------------------------------------------------------ */
 function loadWishlist() {
   try {
@@ -141,20 +147,24 @@ function seedPlaces() {
 /* ------------------------------------------------------------
    서버 호출 — 카카오 원본 필드는 여기까지 오지 않는다 (proxy 가 정규화한다)
    ------------------------------------------------------------ */
-async function requestPlaces() {
+async function requestPage(page) {
   const params = new URLSearchParams({
     x: String(state.origin.lng),
     y: String(state.origin.lat),
-    radius: String(radius()),
-    page: "1"
+    page: String(page)
   });
 
   let url;
   if (state.q) {
+    // 반경을 보내지 않는다 — 키워드 검색은 전국이다.
+    // 기준점(x/y)은 계속 보낸다. 카카오가 "파스타"는 기준점 근처로,
+    // "부산 돼지국밥"은 부산으로 알아서 넘겨준다 (proxy.mjs handleSearch 주석).
     params.set("q", state.q);
     url = `/api/search?${params}`;
   } else {
+    // 카테고리 둘러보기는 "근처에 뭐 있지"라 반경이 본질이다.
     params.set("group", "FD6");
+    params.set("radius", String(radius()));
     url = `/api/category?${params}`;
   }
 
@@ -175,7 +185,23 @@ async function requestPlaces() {
     const message = body?.message || "잠시 뒤에 다시 시도해 주세요.";
     throw Object.assign(new Error(message), { code });
   }
-  return Array.isArray(body?.places) ? body.places : [];
+  return {
+    places: Array.isArray(body?.places) ? body.places : [],
+    // meta 가 없으면 "끝"으로 본다. 뒤 페이지를 헛으로 긁지 않는다.
+    isEnd: body?.meta?.isEnd !== false
+  };
+}
+
+/** 같은 가게가 페이지 경계에서 두 번 오는 경우가 있다. id 로만 판단한다. */
+function dedupeById(places) {
+  const seen = new Set();
+  const out = [];
+  for (const p of places) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    out.push(p);
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------
@@ -246,7 +272,9 @@ function showEmpty() {
     });
   }
 
-  if (state.radiusStep < RADIUS_STEPS.length - 1) {
+  // 검색어가 있으면 이미 전국이라 반경을 넓힐 여지가 없다. 이 버튼을 띄우면
+  // 눌러도 결과가 그대로여서 사용자가 같은 자리를 반복하게 된다.
+  if (!state.q && state.radiusStep < RADIUS_STEPS.length - 1) {
     const next = RADIUS_STEPS[state.radiusStep + 1];
     action(`${radiusText(next)}까지 넓혀서 찾기`, () => {
       state.radiusStep += 1;
@@ -269,11 +297,13 @@ function metaLine(place) {
   const region = regionOf(place.region);
   if (region) parts.push(region);
 
-  // 카카오가 distance 를 주면 그 값을 우선 쓰고, 도보 분 환산만 geo.js 로 한다.
-  const minutes = Number.isFinite(place.distance)
-    ? walkMinutesFromMeters(place.distance)
-    : walkMinutes(state.origin, { lat: place.lat, lng: place.lng });
-  if (Number.isFinite(minutes)) parts.push(`도보 ${minutes}분`);
+  // 카카오가 distance 를 주면 그 값을 우선 쓴다. 문구 결정은 geo.js 가 한다 —
+  // 전국 검색이라 도보로 갈 수 없는 거리가 섞여 들어온다.
+  const meters = Number.isFinite(place.distance)
+    ? place.distance
+    : metersBetween(state.origin, { lat: place.lat, lng: place.lng });
+  const dist = distanceText(meters);
+  if (dist) parts.push(dist);
 
   return parts.join(" · ");
 }
@@ -406,21 +436,48 @@ function setBusy(on) {
   $("#resultsRegion").setAttribute("aria-busy", String(on));
 }
 
+/**
+ * 기준점 안내. 두 모드가 범위가 달라서 한 문장으로 못 쓴다.
+ * 검색어가 있으면 전국이고, 없으면 기준점 반경 안이다.
+ * 여기서 "반경 1km" 를 계속 띄우면 전국 결과를 보면서 반경 안내를 읽게 된다.
+ */
 function renderOriginNote() {
-  $("#originNote").textContent = `${state.originLabel} 기준 · 반경 ${radiusText(radius())}`;
+  $("#originNote").textContent = state.q
+    ? `${state.originLabel}에서 가까운 순 · 지역 이름을 같이 치면 그 지역에서 찾아요`
+    : `${state.originLabel} 기준 · 반경 ${radiusText(radius())}`;
 }
 
 async function run() {
   const seq = ++state.seq;
   setBusy(true);
   showLoading();
+  renderOriginNote();   // 검색어 유무에 따라 안내 문구가 달라진다
 
   try {
-    const places = await requestPlaces();
+    const first = await requestPage(1);
     if (seq !== state.seq) return;             // 더 최신 요청이 이미 떠 있다
     state.demo = false;
     $("#demoBanner").hidden = true;
-    renderResults(applyChipFilter(places));
+
+    let places = first.places;
+
+    // 1페이지를 바로 그린다 — 뒤 페이지를 기다리느라 첫 화면을 늦추지 않는다.
+    // 단 칩 필터가 1페이지에서 0건이면 그리지 않는다. 뒤 페이지에 그 종류가
+    // 몰려 있을 수 있어서, 여기서 "없어요"를 띄우면 곧 결과로 덮이며 깜빡인다.
+    const showFirstNow = first.isEnd || applyChipFilter(places).length > 0;
+    if (showFirstNow) renderResults(applyChipFilter(places));
+
+    if (!first.isEnd) {
+      const rest = await Promise.all(
+        Array.from({ length: MAX_PAGES - 1 }, (_, i) =>
+          // 뒤 페이지 하나가 실패해도 이미 받은 결과를 버리지 않는다
+          requestPage(i + 2).then(r => r.places, () => [])
+        )
+      );
+      if (seq !== state.seq) return;
+      places = dedupeById(places.concat(...rest));
+      renderResults(applyChipFilter(places));
+    }
   } catch (err) {
     if (seq !== state.seq) return;
 
