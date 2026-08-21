@@ -17,6 +17,8 @@
 | `review_design.md` | **design** |
 | `index.html` (검색·담기) | **logic** |
 | `assets/search.js` | **logic** |
+| `assets/auth.js` (세션 · 상태만. DOM 없음) | **logic** |
+| `assets/auth-ui.js` (헤더 · 모달) | **logic** |
 | `api/` (서버리스 함수 + `_lib/`) | **logic** |
 | `assets/search.css` (레이아웃 전용) | **logic** |
 | `assets/seed.js` | **logic** |
@@ -113,29 +115,51 @@ state-loading  state-empty  state-error  state-demo
 ```
 추가 승인 (2026-08-20): `result-card-note` — 시드 폴백일 때 도로명 대신 방문 메모를 담는다. `.result-card-addr` 한 클래스가 두 의미를 갖지 않도록 분리.
 
-**추가 승인 (2026-08-21) — 구글 리뷰 패널 (1.6):**
+**추가 승인 (2026-08-21) — 로그인 (1.7):**
 ```
-result-card-toggle  result-card-toggle-mark
-review-panel  review-panel-status  review-panel-note  review-panel-link
+auth-status  auth-user  auth-trigger
+auth-modal  auth-modal-head  auth-modal-title
+auth-modal-dismiss  auth-modal-close
+auth-form  auth-field  auth-label  auth-input  auth-hint
+auth-error  auth-notice  auth-actions
+```
+
+**추가 승인 (2026-08-21) — 구글 리뷰 모달 (1.6):**
+```
+result-card-open
+review-modal  review-modal-head  review-modal-title
+review-modal-dismiss  review-modal-close  review-modal-body
+review-panel-status  review-panel-note  review-panel-link
 review-rating
 review-list  review-item  review-item-head  review-item-author
 review-item-text  review-item-link
 ```
 
-### 1.6 구글 리뷰 패널
+> **개정 (2026-08-21):** 처음에는 카드 안에서 펼치는 `.review-panel` 이었다. 구글 정책상 리뷰 원문을 자를 수 없어 카드가 화면 몇 개 높이로 길어졌고 목록을 훑을 수가 없었다. 모달로 옮기면서 `.result-card-toggle`·`.result-card-toggle-mark`·`.review-panel` 은 폐기하고 `.result-card-open` 과 `.review-modal-*` 로 갈음했다. `.review-panel-*` 하위 클래스는 이름 그대로 남는다 — 모달 본문의 콘텐츠 규칙이라 자리만 옮겼다.
+
+### 1.6 구글 리뷰 모달
 
 가게 이름이 열기 버튼이다. 카드 전체를 클릭 대상으로 삼지 않는다 — 안에 `.btn-save` 와 `.result-card-link` 가 이미 있어 중첩 클릭이 된다.
 
 ```html
 <h3 class="result-card-title">
-  <button class="result-card-toggle" type="button"
-          aria-expanded="false" aria-controls="rv-kakao-123">
-    가게 이름<span class="result-card-toggle-mark" aria-hidden="true">▾</span>
-  </button>
+  <button class="result-card-open" type="button" aria-haspopup="dialog"
+          aria-label="가게 이름 구글 리뷰 보기">가게 이름</button>
 </h3>
-...
-<div class="review-panel" id="rv-kakao-123" hidden>
-  <p class="review-rating">⭐ 4.3 · 리뷰 128</p>
+```
+
+모달은 **카드마다 두지 않고 문서에 하나만 두고 돌려 쓴다.**
+
+```html
+<dialog class="review-modal" id="reviewModal" aria-labelledby="reviewModalTitle">
+  <div class="review-modal-head">
+    <h2 class="review-modal-title" id="reviewModalTitle"></h2>
+    <form method="dialog" class="review-modal-dismiss">
+      <button class="review-modal-close" type="submit" aria-label="닫기"></button>
+    </form>
+  </div>
+  <div class="review-modal-body" id="reviewModalBody">
+    <p class="review-rating">⭐ 4.3 · 리뷰 128</p>
   <ul class="review-list">
     <li class="review-item">
       <p class="review-item-head"><span class="review-item-author">홍길동</span> · ⭐ 5 · 3개월 전</p>
@@ -143,12 +167,19 @@ review-item-text  review-item-link
       <a class="review-item-link" href="…" target="_blank" rel="noopener">이 리뷰 원문</a>
     </li>
   </ul>
-  <p class="review-panel-note">구글이 정한 순서로 보여주는 리뷰예요.</p>
-  <a class="review-panel-link" href="…" target="_blank" rel="noopener">Google Maps에서 전체 리뷰 보기</a>
-</div>
+    <p class="review-panel-note">구글이 정한 순서로 보여주는 리뷰예요.</p>
+    <a class="review-panel-link" href="…" target="_blank" rel="noopener">Google Maps에서 전체 리뷰 보기</a>
+  </div>
+</dialog>
 ```
 
-- 열림 상태는 **`aria-expanded`** 로만 표현한다. `.is-open` 을 만들지 않는다 (1.2 칩과 같은 규칙).
+- **네이티브 `<dialog>` 를 쓰고 `showModal()` 로 연다.** 포커스 가둠·Esc 닫기·배경 비활성화·`::backdrop` 을 브라우저가 해 준다. 직접 만들면 반드시 빠뜨리는 것들이고, 의존성 0 을 지키는 유일한 길이다. 딤 배경 클릭으로 닫는 것만 직접 붙인다 (`<dialog>` 가 기본으로 안 해 준다).
+- **딤 배경은 `--dim` 토큰이다.** DESIGN 7.4 가 `box-shadow` 금지의 유일한 예외로 열어 둔 자리이고 토큰도 그 용도로 있었다. **상자 자체에는 그림자를 쓰지 않는다** — 계층은 여기서도 1px `--line` 이다.
+- 열기 버튼의 유일한 어포던스는 **밑줄**이다. 색을 못 쓰기 때문이다. `--line` 으로 그으면 배경과 톤이 같아 화면에서 사라지므로 `--ink-muted` 를 쓴다.
+- 머리말은 고정하고 `.review-modal-body` 만 스크롤한다. 리뷰가 길어도 닫기 버튼에 항상 닿아야 한다.
+- **`.review-modal:not([open]) { display: none; }` 은 선택이 아니다.** `.review-modal` 이 `display:flex` 를 쓰므로 `<dialog>` 의 기본 숨김이 무력화된다. 없으면 닫아도 화면에 남는다 (`.state-*[hidden]` · `.saved-panel[hidden]` 과 같은 함정).
+- **닫기 버튼은 `<form method="dialog">` 안의 `type="submit"` 이다. JS 리스너를 붙이지 않는다.** 브라우저가 닫아 주므로 스크립트가 죽거나 배선이 빠져도 닫기는 살아 있다 — **모달에 갇히는 것이 최악의 실패**라 그 경로만은 JS 에 걸지 않는다. 딤 배경 클릭만 JS 로 처리한다(`<dialog>` 가 기본 제공하지 않는다).
+- **`.review-modal-close` 는 44×44 다.** 이 디자인 시스템의 최소 터치 타겟이고 `.filter-chip` 과 같은 값이다. 32px 로 만들었더니 빗나가기 쉬웠는데, 모달을 닫는 유일한 버튼이라 한 번에 안 눌리면 "안 닫힌다"로 읽힌다. 줄이지 않는다.
 - 로딩·못 찾음·실패는 전부 `.review-panel-status` 한 클래스로 낸다. `.state-*` 를 재사용하지 않는다 — 그쪽은 결과 영역 전체용이라 padding 이 48px 이다.
 - **`.review-item-author` · `.review-item-link` · `.review-panel-note` 는 선택이 아니다.** 구글 정책이 작성자 표기·원본 리뷰 접근·정렬 방식 고지를 요구한다. 지우면 정책 위반이다.
 - **리뷰 본문을 자르지 않는다.** `line-clamp` 금지 — 구글이 원문의 변형·절단을 금지한다.
@@ -262,6 +293,36 @@ review-item-text  review-item-link
 
 ---
 
+### 1.7 로그인 · 회원가입
+
+헤더 오른쪽. `.masthead .wrap` 이 이미 `justify-content: space-between` 이라 워드마크 뒤에 넣으면 자리가 잡힌다.
+
+```html
+<div class="auth-status" id="authStatus"></div>
+<!-- 로그아웃 상태 -->  <button class="auth-trigger">로그인</button>
+<!-- 로그인 상태 -->    <span class="auth-user">홍길동님</span><button class="auth-trigger">로그아웃</button>
+```
+
+모달은 **1.6 과 같은 규칙을 그대로 따른다.** 네이티브 `<dialog>` · `showModal()` · 닫기는 `<form method="dialog">` submit 이라 JS 리스너를 붙이지 않는다 · 닫기 44×44 · 딤 클릭만 JS.
+
+- **`.auth-modal:not([open]) { display: none; }` 은 선택이 아니다.** `display:flex` 를 쓰는 순간 `<dialog>` 의 기본 숨김이 무력화된다. 리뷰 모달에서 실제로 밟은 버그다.
+**창은 두 모드를 갖는다 — `로그인` 과 `회원가입`.** 보조 버튼(`#authSwitchBtn`)은 제출이 아니라 **모드를 바꾼다.**
+
+| | 제목 | 주 버튼 | 보조 버튼 | 이름 칸 |
+|---|---|---|---|---|
+| 로그인 | 로그인 | 로그인 | 회원가입 | 숨김 |
+| 회원가입 | 회원가입 | 가입하기 | 로그인으로 돌아가기 | 보임 |
+
+> **왜 곧바로 제출하지 않는가 (2026-08-21):** 처음에는 두 버튼이 각각 바로 제출했다. 회원가입을 눌러도 화면이 그대로라 **눌러도 반응이 없는 것처럼 보였고**, 로그인하려던 사람이 실수로 계정을 만들 수도 있었다. 누른 즉시 화면이 바뀌는 것이 사용자가 기대하는 반응이다.
+
+- **`.auth-field[hidden] { display: none; }` 은 선택이 아니다.** `.auth-field` 가 `display:flex` 라 `[hidden]` 이 무력화된다 — 없으면 로그인 모드에서도 이름 칸이 보인다. `.review-modal:not([open])` 과 같은 함정이다.
+- 모드가 바뀌면 비밀번호 칸의 `autocomplete` 도 `current-password` ↔ `new-password` 로 바꾼다.
+- 창을 닫으면 입력값과 모드를 **로그인으로 되돌린다.** 단 그 정리는 **여는 시점에** 한다 — `<dialog>` 의 `close` 이벤트가 이 환경에서 발생하지 않는 것을 실측했다 (CLAUDE.md 설계 결정 참조).
+- **오류와 안내를 나눈다.** `.auth-error` 는 `--error`(DESIGN 2.3 의 폼 에러 전용 색), `.auth-notice` 는 무채색 점선 상자다. "확인 메일 보냈어요" 는 **성공**이라 빨간 글씨로 띄우면 실패로 읽힌다. 둘 다 비어 있으면 `display:none`.
+- `.review-modal*` 을 재사용하지 않는다. `.card` 와 `.result-card` 를 가른 것과 같은 이유다.
+
+---
+
 ## 4. CSS 경계
 
 - `logic` 의 `assets/search.css` 는 **레이아웃 선언만** 쓴다 — `display` `grid-*` `flex-*` `gap` `padding` `margin` `order` `position` `overflow` `width` `height` `aspect-ratio`.
@@ -274,7 +335,7 @@ review-item-text  review-item-link
 
 `review_design.md` 7장 — 권고가 아니라 규칙이다.
 
-- **UI에 유채색 금지.** 예외는 **둘뿐** — 폼 에러용 `--error: #8C4A3F`, 그리고 구글 리뷰 패널 안의 `⭐` 글리프 (2026-08-21, DESIGN 7.3). 카테고리별 색상 부여 금지
+- **UI에 유채색 금지.** 예외는 **둘뿐** — 폼 에러용 `--error: #8C4A3F` (`.auth-error` 가 두 번째 사용처다. 규칙 변경이 아니라 원래 용도), 그리고 구글 리뷰 패널 안의 `⭐` 글리프 (2026-08-21, DESIGN 7.3). 카테고리별 색상 부여 금지
 - **정량 지표 표시 금지 — 우리 데이터에 한해** (2026-08-21 개정, DESIGN 7.1). 별점 · 리뷰 수 · 방문자 수 · **타인의 저장 수** · 순위. `distance` 를 순위처럼 쓰지 않는다
   - 예외 ①: *내가 담은 목록의 개수* 는 사회적 증거가 아니므로 표시 가능
   - 예외 ②: **구글 리뷰 패널(1.6) 안의 구글 별점·리뷰 수.** 출처가 화면에 드러나는 자리에서만. 카드 메타 줄로 끌어내거나 **정렬·순위 기준으로 쓰는 것은 여전히 금지**

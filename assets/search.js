@@ -53,8 +53,7 @@ const state = {
   originLabel: HOME.label,
   radiusStep: 0,
   demo: false,
-  seq: 0,           // 늦게 도착한 응답이 최신 결과를 덮어쓰지 않게 하는 요청 번호
-  openReviews: new Set()   // 펼쳐 둔 리뷰 패널. 다시 그릴 때 복원한다
+  seq: 0            // 늦게 도착한 응답이 최신 결과를 덮어쓰지 않게 하는 요청 번호
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -308,6 +307,11 @@ function showEmpty() {
 
    - **리뷰 본문을 자르지 않고, 작성자와 원본 링크를 반드시 같이 낸다.**
      구글 정책 요구사항이라 UI 취향의 문제가 아니다.
+
+   - **카드 안에서 펼치지 않고 모달로 띄운다** (2026-08-21 변경).
+     본문을 자르지 않다 보니 카드가 화면 몇 개 높이로 길어져 목록을 훑을 수
+     없었다. <dialog>.showModal() 을 쓰면 포커스 가둠·Esc·배경 비활성화를
+     브라우저가 해 준다 — 직접 만들면 반드시 빠뜨리는 것들이다.
    ------------------------------------------------------------ */
 
 const reviewCache = new Map();   // id → payload. 탭을 닫으면 사라진다.
@@ -438,34 +442,86 @@ function renderReviewPanel(panel, payload) {
   }
 }
 
-async function openReviews(place, panel) {
+/* ------------------------------------------------------------
+   모달 — 카드마다 패널을 두지 않고 하나를 돌려 쓴다
+   ------------------------------------------------------------ */
+
+/** 지금 모달이 보여주고 있는 가게. 늦게 온 응답이 다른 가게 화면을 덮지 않게 한다. */
+let modalPlaceId = null;
+
+function closeModal() {
+  const dlg = $("#reviewModal");
+  modalPlaceId = null;
+  if (dlg.open) dlg.close();
+}
+
+async function openReviews(place) {
+  const dlg  = $("#reviewModal");
+  const body = $("#reviewModalBody");
+
+  $("#reviewModalTitle").textContent = place.name;
+  modalPlaceId = place.id;
+  if (!dlg.open) dlg.showModal();
+
   const cached = reviewCache.get(place.id);
-  if (cached) { renderReviewPanel(panel, cached); return; }   // 재요청 없음
+  if (cached) { renderReviewPanel(body, cached); return; }   // 재요청 없음
 
   const seq = (reviewSeq.get(place.id) || 0) + 1;
   reviewSeq.set(place.id, seq);
 
-  panel.replaceChildren(el("p", "review-panel-status", "리뷰를 불러오는 중..."));
+  body.replaceChildren(el("p", "review-panel-status", "리뷰를 불러오는 중..."));
+
+  /**
+   * 그 사이 모달을 닫았거나 다른 가게를 열었으면 그리지 않는다.
+   * dlg.open 을 같이 보는 이유: Esc 로 닫으면 closeModal 을 거치지 않아
+   * modalPlaceId 가 남아 있을 수 있다. 열려 있는지가 진짜 기준이다.
+   */
+  const stale = () => !dlg.open
+    || reviewSeq.get(place.id) !== seq
+    || modalPlaceId !== place.id;
 
   try {
     const payload = await requestReviews(place);
-    if (reviewSeq.get(place.id) !== seq) return;   // 접었다 다시 연 뒤의 늦은 응답
+    if (stale()) return;
 
     reviewCache.set(place.id, payload);
     if (payload.found) savePlaceId(place.id, payload.place.placeId);
-    renderReviewPanel(panel, payload);
+    renderReviewPanel(body, payload);
   } catch (err) {
-    if (reviewSeq.get(place.id) !== seq) return;
+    if (stale()) return;
 
     // 여기서 끝낸다. 페이지 전체를 씨드 폴백으로 뒤집지 않는다.
-    panel.replaceChildren();
+    body.replaceChildren();
     const box = el("p", "review-panel-status", `리뷰를 불러오지 못했어요. ${err.message}`);
     const retry = el("button", "btn btn-secondary", "다시 시도");
     retry.type = "button";
-    retry.addEventListener("click", () => openReviews(place, panel));
+    retry.addEventListener("click", () => openReviews(place));
     box.append(retry);
-    panel.append(box);
+    body.append(box);
   }
+}
+
+function wireModal() {
+  const dlg = $("#reviewModal");
+
+  // 닫기 버튼에는 리스너를 붙이지 않는다. <form method="dialog"> 안의 submit
+  // 버튼이라 브라우저가 닫아 준다 — 이 함수가 아예 안 불려도 닫기는 동작한다.
+  // 모달에 갇히는 것이 최악이라 그 경로만은 JS 에 걸지 않는다.
+
+  // Esc·닫기 버튼 어느 쪽이든 closeModal 을 거치지 않는다. close 와 cancel
+  // 양쪽에서 상태를 지운다 — 브라우저에 따라 둘 중 하나만 오는 경우가 있다.
+  dlg.addEventListener("close",  () => { modalPlaceId = null; });
+  dlg.addEventListener("cancel", () => { modalPlaceId = null; });
+
+  // 딤 배경 클릭으로 닫기. <dialog> 는 기본으로 안 해 준다.
+  // 상자 안을 눌러도 target 이 dialog 가 되는 경우가 있어 좌표로 판정한다.
+  dlg.addEventListener("click", (e) => {
+    if (e.target !== dlg) return;
+    const r = dlg.getBoundingClientRect();
+    const inside = e.clientX >= r.left && e.clientX <= r.right
+                && e.clientY >= r.top  && e.clientY <= r.bottom;
+    if (!inside) closeModal();
+  });
 }
 
 /* ------------------------------------------------------------
@@ -506,19 +562,15 @@ function buildCard(place) {
 
   const body = el("div", "result-card-body");
 
-  // 제목이 리뷰 패널의 열기 버튼이다. 카드 전체를 클릭 대상으로 만들지 않는 이유는
+  // 제목이 리뷰 모달의 열기 버튼이다. 카드 전체를 클릭 대상으로 만들지 않는 이유는
   // 안에 [담기]와 [카카오맵]이 이미 있어서다 — 중첩 클릭은 접근성이 깨진다.
-  const panelId = `rv-${place.id}`;
   const title = el("h3", "result-card-title");
-  const toggle = el("button", "result-card-toggle");
-  toggle.type = "button";
-  toggle.setAttribute("aria-expanded", "false");
-  toggle.setAttribute("aria-controls", panelId);
-  // 내용 없는 span 이다 — 화살표는 components.css 가 보더로 그린다 (글리프 폴백 회피)
-  const mark = el("span", "result-card-toggle-mark");
-  mark.setAttribute("aria-hidden", "true");   // 상태는 aria-expanded 가 이미 말한다
-  toggle.append(document.createTextNode(place.name), mark);
-  title.append(toggle);
+  const open = el("button", "result-card-open", place.name);
+  open.type = "button";
+  open.setAttribute("aria-haspopup", "dialog");
+  open.setAttribute("aria-label", `${place.name} 구글 리뷰 보기`);
+  open.addEventListener("click", () => openReviews(place));
+  title.append(open);
   body.append(title);
 
   body.append(el("p", "result-card-meta", metaLine(place)));
@@ -549,31 +601,6 @@ function buildCard(place) {
   }
 
   body.append(foot);
-
-  const panel = el("div", "review-panel");
-  panel.id = panelId;
-  panel.hidden = true;
-  body.append(panel);
-
-  toggle.addEventListener("click", () => {
-    const open = toggle.getAttribute("aria-expanded") === "true";
-    toggle.setAttribute("aria-expanded", String(!open));
-    panel.hidden = open;
-    if (open) {
-      state.openReviews.delete(place.id);
-    } else {
-      state.openReviews.add(place.id);
-      openReviews(place, panel);
-    }
-  });
-
-  // 1페이지를 그린 뒤 45곳으로 다시 그리는 사이에 연 패널이 지워지지 않게 복원한다
-  if (state.openReviews.has(place.id)) {
-    toggle.setAttribute("aria-expanded", "true");
-    panel.hidden = false;
-    openReviews(place, panel);
-  }
-
   li.append(body);
   return li;
 }
@@ -659,12 +686,20 @@ function setBusy(on) {
 }
 
 /**
- * 기준점 안내. 두 모드가 범위가 달라서 한 문장으로 못 쓴다.
- * 검색어가 있으면 전국이고, 없으면 기준점 반경 안이다.
- * 여기서 "반경 1km" 를 계속 띄우면 전국 결과를 보면서 반경 안내를 읽게 된다.
+ * 기준점 안내.
+ *
+ * **기본값(성수동)일 때는 아무것도 쓰지 않는다** (2026-08-21 변경).
+ * "성수동 기준 · 반경 1km" 를 첫 화면에 띄우면 서비스 자체가 성수동 전용처럼
+ * 읽힌다. 실제로는 검색어를 치는 순간 전국이 되는데도 그렇다.
+ *
+ * 대신 사용자가 "현재 위치로 찾기"를 **직접 눌러 기준점을 옮겼을 때만** 쓴다.
+ * 그 경우엔 안내가 아니라 "눌린 게 먹혔다"는 확인이라 없으면 피드백이 사라진다.
  */
 function renderOriginNote() {
-  $("#originNote").textContent = state.q
+  const note = $("#originNote");
+  if (state.originLabel === HOME.label) { note.textContent = ""; return; }
+
+  note.textContent = state.q
     ? `${state.originLabel}에서 가까운 순 · 지역 이름을 같이 치면 그 지역에서 찾아요`
     : `${state.originLabel} 기준 · 반경 ${radiusText(radius())}`;
 }
@@ -783,6 +818,7 @@ function init() {
   buildChips();
   wireSearchBar();
   wireGeo();
+  wireModal();
   renderOriginNote();
   renderSaved();
   run();

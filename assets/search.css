@@ -33,6 +33,9 @@
 .search-bar { margin-top: var(--space-6); }
 
 #originNote    { margin: var(--space-4) 0 0; }
+/* 기본 상태에서는 비어 있다. 빈 <p> 라도 margin 은 남아 검색바와 결과 사이에
+   16px 짜리 죽은 여백이 생긴다. */
+#originNote:empty { display: none; }
 #resultsRegion { margin-top: var(--space-6); }
 
 /* ------------------------------------------------------------

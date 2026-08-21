@@ -43,6 +43,10 @@
 <header class="masthead">
   <div class="wrap">
     <a class="wordmark" href="./">빼고<span class="sr-only"> — 홈으로</span></a>
+    <!-- .masthead .wrap 이 이미 justify-content:space-between 이라
+         이 덩어리는 CSS 추가 없이 오른쪽에 붙는다.
+         내용은 auth-ui.js 가 세션 상태에 따라 바꿔 그린다. -->
+    <div class="auth-status" id="authStatus"></div>
   </div>
 </header>
 
@@ -79,6 +83,8 @@
 
       <div class="filter-row" id="filterRow" role="group" aria-label="음식 종류로 좁히기"></div>
 
+      <!-- 기본 상태에서는 비어 있다. "현재 위치로 찾기"를 눌렀을 때만 채운다 —
+           기본값인 성수동을 여기 적으면 서비스가 성수동 전용처럼 읽힌다. -->
       <p class="t-caption muted" id="originNote"></p>
 
       <div id="resultsRegion" aria-live="polite" aria-busy="false">
@@ -105,11 +111,81 @@
     </div>
   </section>
 
+<!-- ==========================================================
+     구글 리뷰 모달 — CONTRACT 1.6
+     <dialog> 를 쓰는 이유: 포커스 가둠 · Esc 닫기 · 배경 비활성화 ·
+     ::backdrop 을 브라우저가 전부 해 준다. 의존성 0 을 지키면서
+     직접 구현하면 반드시 빠뜨리는 것들이다.
+     ========================================================== -->
+<dialog class="review-modal" id="reviewModal" aria-labelledby="reviewModalTitle">
+  <div class="review-modal-head">
+    <h2 class="review-modal-title" id="reviewModalTitle"></h2>
+    <!-- method="dialog" 는 JS 없이 다이얼로그를 닫는다. 스크립트가 죽거나
+         배선이 빠져도 닫기는 살아 있어야 한다 — 모달에 갇히는 것이 최악이다.
+         form 은 display:contents 라 레이아웃에 끼어들지 않는다. -->
+    <form method="dialog" class="review-modal-dismiss">
+      <button class="review-modal-close" type="submit" id="reviewModalClose" aria-label="닫기"></button>
+    </form>
+  </div>
+  <div class="review-modal-body" id="reviewModalBody"></div>
+</dialog>
+
+
+<!-- ==========================================================
+     로그인 · 회원가입 모달 — CONTRACT 1.7
+     구글 리뷰 모달과 같은 규칙이다 (CONTRACT 1.6).
+     ========================================================== -->
+<dialog class="auth-modal" id="authModal" aria-labelledby="authModalTitle">
+  <div class="auth-modal-head">
+    <h2 class="auth-modal-title" id="authModalTitle">로그인 · 회원가입</h2>
+    <!-- method="dialog" 는 JS 없이 닫는다. 배선이 빠져도 닫기는 살아 있어야 한다. -->
+    <form method="dialog" class="auth-modal-dismiss">
+      <button class="auth-modal-close" type="submit" aria-label="닫기"></button>
+    </form>
+  </div>
+
+  <form class="auth-form" id="authForm" novalidate>
+    <label class="auth-field">
+      <span class="auth-label">이메일</span>
+      <input class="auth-input" id="authEmail" name="email" type="email"
+             autocomplete="email" inputmode="email" required>
+    </label>
+
+    <label class="auth-field">
+      <span class="auth-label">비밀번호</span>
+      <input class="auth-input" id="authPassword" name="password" type="password"
+             autocomplete="current-password" required>
+    </label>
+
+    <!-- 회원가입 모드에서만 보인다. auth-ui.js 가 hidden 을 토글한다.
+         .auth-field 가 display:flex 라 [hidden] 을 CSS 로 따로 눌러줘야 한다. -->
+    <label class="auth-field" id="authNameField" hidden>
+      <span class="auth-label">이름</span>
+      <input class="auth-input" id="authName" name="name" type="text" autocomplete="name">
+      <span class="auth-hint">헤더에 "○○○님" 으로 표시돼요.</span>
+    </label>
+
+    <!-- 오류(빨강)와 안내(무채색)를 나눈다. "확인 메일 보냈어요" 는 성공이라
+         빨간 글씨로 띄우면 실패로 읽힌다. 비어 있으면 자리를 차지하지 않는다. -->
+    <p class="auth-error" id="authError" role="alert"></p>
+    <p class="auth-notice" id="authNotice" role="status"></p>
+
+    <div class="auth-actions">
+      <button class="btn btn-primary" type="submit" id="authSubmitBtn">로그인</button>
+      <button class="btn btn-secondary" type="button" id="authSwitchBtn">회원가입</button>
+    </div>
+  </form>
+</dialog>
+
 </main>
 
 <footer class="footer">
   <div class="wrap footer-rows t-caption">
-    <p>담은 목록은 이 브라우저에만 저장돼요. 서버로 보내지 않습니다.</p>
+    <!-- 로그인이 생기면서 "서버로 보내지 않습니다" 가 거짓이 됐다 —
+         회원가입 시 이메일과 이름이 Supabase 로 간다. 담은 목록은 아직
+         브라우저에만 있으므로 그 둘을 나눠 적는다. 담기를 계정으로 옮기면
+         이 줄을 다시 고쳐야 한다. -->
+    <p>담은 목록은 아직 이 브라우저에만 저장돼요. 로그인하면 이메일과 이름만 서버에 보관돼요.</p>
     <p>빼고 <span aria-hidden="true">·</span> 가제입니다</p>
     <!-- 사이트 루트가 되면서 삭제된 랜딩 푸터에서 넘겨받았다. 랜딩에 있던
          "샘플이에요" 줄은 가져오지 않는다 — 이 페이지는 기본이 카카오 실데이터이고,
@@ -118,6 +194,9 @@
   </div>
 </footer>
 
+<!-- auth-ui.js 가 auth.js 를 import 한다. 로그인 상태만 쓰는 코드는
+     auth.js 만 가져다 쓰면 되고 화면 코드는 딸려오지 않는다. -->
+<script type="module" src="./assets/auth-ui.js"></script>
 <script type="module" src="./assets/search.js"></script>
 
 </body>
