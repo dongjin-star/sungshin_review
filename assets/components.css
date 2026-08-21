@@ -603,6 +603,9 @@ a:visited { color: inherit; }
   padding: 0;
   margin: 0;
   list-style: none;
+  /* 리뷰 패널이 열리면 그 카드만 길어져야 한다. 그리드 기본값(stretch)이면
+     같은 행의 나머지 카드도 같이 늘어나 옆자리에 빈 공간이 생긴다. */
+  align-items: start;
 }
 @media (min-width: 768px)  { .result-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1440px) { .result-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -740,6 +743,144 @@ a:visited { color: inherit; }
   background: var(--ink);
   color: var(--on-ink);
   border-color: var(--ink);
+}
+
+/* ════════════════════════════════════════════════════════════
+   1.6 구글 리뷰 패널 — CONTRACT 1.6 (2026-08-21 승인)
+   ------------------------------------------------------------
+   DESIGN 7.1 이 "별점·리뷰 수 표시 금지"였고, 7.1 개정으로 **외부 출처
+   (구글) 지표에 한해** 예외가 생겼다. 우리가 모은 리뷰의 지표는 여전히 금지다.
+   ⭐ 는 7.3 유채색 금지의 두 번째 예외다 (첫 번째는 폼 에러 --error).
+
+   그래서 이 블록에서 유채색은 ⭐ 글리프 하나뿐이고, 나머지는 전부
+   --ink / --ink-muted / --line 안에서 해결한다. box-shadow 없음,
+   계층은 1px 보더와 점선으로 낸다 — 카드 본문과 같은 어법이다.
+   ════════════════════════════════════════════════════════════ */
+
+/* 제목을 누르면 열린다. h3 안의 button 이라 h3 의 타이포는 그대로 두고
+   버튼 기본 스타일만 지운다. 카드 전체를 클릭 대상으로 삼지 않는 이유는
+   안에 [담기]·[카카오맵]이 이미 있어서다 — 중첩 클릭은 접근성이 깨진다. */
+.result-card-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.result-card-toggle:hover { color: var(--ink-muted); }
+
+/* 펼침 표시. 색이 아니라 회전으로 상태를 알린다.
+   ▾ 같은 글리프를 쓰지 않는 이유: Pretendard 에 없어서 얇은 대시로 폴백된다.
+   .result-card-origin::before 의 원 마커와 같이 CSS 로 그린다. */
+.result-card-toggle-mark {
+  flex: none;
+  align-self: center;      /* 부모가 baseline 정렬이라 명시가 필요하다 */
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--ink-muted);
+  border-bottom: 1px solid var(--ink-muted);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform var(--duration-state) var(--ease-out);
+}
+.result-card-toggle[aria-expanded="true"] .result-card-toggle-mark {
+  transform: rotate(-135deg) translate(-2px, -2px);
+}
+
+.review-panel {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.review-panel[hidden] { display: none; }   /* display 를 주는 요소라 명시 필요 */
+
+/* 로딩 · 못 찾음 · 실패가 같이 쓰는 한 줄. .state-* 를 재사용하지 않는 이유는
+   그쪽이 결과 영역 전체용이라 padding 이 48px 이기 때문이다 (카드 안에서는 과하다) */
+.review-panel-status {
+  margin: 0;
+  font-size: var(--fs-13);
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+.review-panel-status .btn { margin-top: var(--space-3); }
+
+/* ⭐ 는 여기 한 곳에서만 쓴다 */
+.review-rating {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.review-list {
+  display: grid;
+  gap: var(--space-4);
+  padding: 0;
+  margin: 0 0 var(--space-4);
+  list-style: none;
+}
+.review-item {
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--line);
+}
+.review-item:first-child { padding-top: 0; border-top: 0; }
+
+/* 작성자 표기는 장식이 아니다 — 구글 정책이 리뷰를 보여줄 때 작성자를
+   반드시 밝히도록 요구한다. 지우면 정책 위반이다. */
+.review-item-head {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.review-item-author { font-weight: 600; color: var(--ink); }
+
+/* 본문을 자르지 않는다. line-clamp 를 넣지 않는 것은 실수가 아니라 정책이다 —
+   구글은 리뷰 원문의 변형·절단을 금지한다. */
+.review-item-text {
+  margin: 0;
+  font-size: var(--fs-14);
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.review-item-link,
+.review-panel-link {
+  display: inline-block;
+  color: var(--ink-muted);
+  font-size: var(--fs-12);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.review-item-link { margin-top: var(--space-2); }
+.review-panel-link {
+  font-size: var(--fs-13);
+  color: var(--ink);
+}
+.review-item-link:hover,
+.review-panel-link:hover { color: var(--ink); }
+
+/* 정렬 방식 고지 — 이것도 구글 정책 요구사항이다 */
+.review-panel-note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-muted);
 }
 
 /* ------------------------------------------------------------

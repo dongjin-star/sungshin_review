@@ -8,3 +8,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Vercel CLI 가 만드는 프로젝트 링크 정보 (프로젝트·조직 ID)
+.vercel/

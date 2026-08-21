@@ -17,7 +17,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `CONTRACT.md` | 병렬 작업 계약 — 파일 소유권·클래스명·API 형태. 여러 명이 붙을 때 여기부터 읽는다 |
 | `index.html` | 맛집 검색·담기. **사이트 루트이자 유일한 페이지다** |
 | `assets/` | CSS·JS·씨드 데이터 |
-| `server/proxy.mjs` | 카카오 로컬 API 키 프록시 + 개발용 정적 서버 |
+| `api/` | 배포용 서버리스 함수 (`search`·`category`·`reviews`) + 공유 로직 `_lib/` |
+| `server/proxy.mjs` | **개발 전용** 정적 서버. API 는 `api/` 의 같은 함수를 불러 쓴다 |
 
 **두 문서가 충돌하면 `review_design.md`가 이긴다.** 문서 말미에 "PRD.md v1.2의 디자인 관련 항목보다 우선한다"고 명시되어 있다.
 
@@ -36,9 +37,16 @@ Copy-Item .env.example .env    # 그 다음 KAKAO_REST_KEY 값을 채운다
 ```
 **`.env` 없이도 전부 동작한다.** 프록시가 `503 NO_KEY` 를 주고 클라이언트가 씨드 12곳으로 폴백한다.
 
+카카오 검색과 별개로 **구글 리뷰**를 쓰려면 키가 하나 더 필요하다:
 ```powershell
-# 로직 검증 — node v24. ESM 이므로 확장자를 .mjs 로 복사해서 검사한다.
-Copy-Item assets\search.js $env:TEMP\chk.mjs; node --check $env:TEMP\chk.mjs
+Add-Content .env "GOOGLE_MAPS_API_KEY=..."
+```
+**이것도 없어도 전부 동작한다.** `/api/reviews` 가 `503 NO_KEY` 를 주고 리뷰 영역에만 실패 문구가 뜬다 — 검색·담기는 그대로다.
+
+```powershell
+# 로직 검증 — package.json 이 "type":"module" 이라 .js 도 그대로 검사된다.
+node --check assets\search.js
+Get-ChildItem api,assets,server -Recurse -Include *.js,*.mjs | ForEach-Object { node --check $_.FullName }
 ```
 
 git 원격은 `origin` → `github.com/dongjin-star/sungshin_review` (**public — `.env` 를 절대 커밋하지 않는다**).
@@ -53,8 +61,10 @@ git 원격은 `origin` → `github.com/dongjin-star/sungshin_review` (**public �
 | `assets/components.css` | 전 컴포넌트. **색·타이포·보더는 전부 여기서만** 정의한다. 랜딩 전용 규칙(`.hero` `.quiz` `.card` `.cta-form` `.roadmap` …)이 아직 남아 있다 — 아래 참조 |
 | `assets/seed.js` | 가게 데이터·카테고리·지역. PRD 9장이 "씨드 1곳 추가 = 1곳 수정"을 요구하므로 **데이터 수정은 전부 여기서만** |
 | `assets/geo.js` | `metersBetween` · `walkMinutes(origin, target)` · `formatDate` |
-| `assets/search.js` | 검색·필터·담기 로직. `index.html` 이 읽는 유일한 모듈이다 |
+| `assets/search.js` | 검색·필터·담기·리뷰 로직. `index.html` 이 읽는 유일한 모듈이다 |
 | `assets/search.css` | 페이지 **레이아웃 전용**. 색·폰트·보더를 여기 쓰지 않는다 |
+| `api/_lib/` | API 로직 전부. `http.js`(응답·`withErrors`) `errors.js`(오류 분류) `upstream.js`(외부 호출) `params.js` `normalize.js` `kakao.js` `places.js` + 엔드포인트별 `search·category·reviews.js` |
+| `api/*.js` | Vercel 함수 진입점 3줄짜리. 로직은 `_lib/` 의 같은 이름 파일에 있다 |
 
 `search.js` · `search.css` 는 이름을 그대로 뒀다. 페이지가 루트로 옮겨졌을 뿐 여전히 검색 화면의 자산이고,
 `CONTRACT.md` 가 이 파일명으로 소유권을 규정하고 있어서 같이 바꾸면 계약 문서까지 흔들린다.
@@ -76,7 +86,15 @@ git 원격은 `origin` → `github.com/dongjin-star/sungshin_review` (**public �
 - **도보 분은 2km 이하에서만 쓴다** (`geo.js: distanceText`). 검색이 전국이 된 뒤로 기준점에서 300km 떨어진 결과가 들어오는데, 도보 분을 그대로 붙이면 "도보 4850분" 이 찍힌다. 숫자는 맞지만 문장이 거짓말이 된다. 2km 초과는 km 로 적는다. **`region` 이 `null` 이어서 메타 줄에 지역이 안 뜨는 먼 결과는 `.result-card-addr` 의 도로명이 위치를 알려주는 유일한 줄이다** — 그래서 주소 줄을 지우면 안 된다.
 - **`#originNote` 는 모드에 따라 다른 말을 한다.** 검색어가 있으면 전국이고 없으면 반경 안이다. 한 문장으로 못 쓴다 — 전국 결과를 보는 사람에게 "반경 1km" 를 띄우면 그 줄이 거짓말이 된다. 같은 이유로 0건 화면의 "N km까지 넓혀서 찾기" 버튼은 **둘러보기 모드에서만** 낸다. 검색 모드에선 눌러도 결과가 그대로다.
 - **검색은 카카오 3페이지를 다 긁는다** (`MAX_PAGES`). 카카오 로컬은 `size=15 × page 3 = 45곳`이 상한인데, 1페이지만 받으면 반경 안에 45곳이 있어도 15곳만 손에 들어온다. 칩 필터는 **클라이언트에서** 그 손에 든 목록을 거르므로, 1페이지만 받으면 "일식 0건" 같은 **거짓 0건**이 나온다 (성수동 1km 실측: 일식 page1 0 / 3페이지 5, 고기 2 / 10). 1페이지는 받는 즉시 그리고 나머지는 뒤에서 붙이되, 칩이 걸려 있고 1페이지 결과가 0건이면 그리지 않고 로딩을 유지한다 — 곧 결과로 덮일 "없어요"가 깜빡이기 때문.
-- **카카오 REST 키는 `server/proxy.mjs` 안에서만 읽힌다.** 브라우저로 나가지 않는다 (PRD 12장 이슈 8). `.env`는 `.gitignore` 대상이고 **저장소가 public이라 이건 타협 불가**다. 키가 없으면 프록시가 `503 NO_KEY`를 주고 클라이언트는 씨드 12곳으로 폴백한다 — 폴백은 예외 경로가 아니라 기본 경로다.
+- **API 로직은 한 벌뿐이다.** `api/_lib/` 에 있고, 배포는 `api/*.js`(Vercel 함수)가, 로컬은 `server/proxy.mjs` 가 **같은 함수 객체**를 부른다. `proxy.mjs` 가 핸들러가 아니라 `api/search.js` 를 통째로 import 하는 게 그 장치다 — `withErrors` 의 버그가 로컬에서 드러나야 한다. 한쪽에만 있는 경로를 만들면 로컬에서 통과한 게 배포에서 깨진다.
+- **핸들러는 `res` 를 모른다.** 페이로드를 `return` 하면 `withErrors` 가 내보낸다. 그래서 로직에 HTTP 의존이 없고, 두 런타임의 차이(쿼리 꺼내는 법)는 `paramsFrom()` 한 곳에 갇힌다.
+- **`/api/reviews` 는 좌표를 필수로 받는다** (`readOrigin`, `readLocation` 아님). `readLocation` 은 좌표가 없으면 조용히 성수동으로 되돌리는데, 리뷰 조회에서 그 폴백이 걸리면 부산 가게를 성수동 기준으로 150m 검사해서 **"구글에 그런 가게 없어요"라는 거짓 답**을 자신 있게 돌려준다. 틀린 답보다 400 이 낫다.
+- **구글 `locationBias` 는 제한이 아니라 편향이다.** 150m 원을 줘도 근처에 없으면 수 km 밖 결과를 그대로 준다. 그래서 서버가 `metersBetween` 으로 다시 재서 150m 안만 남긴다 (`api/_lib/reviews.js: pickNearest`). 이 검사를 빼면 "전국에 같은 이름이 여러 개" 요구사항이 그대로 무너진다. (`locationRestriction` 은 사각형만 받고 카테고리 질의 전용이라 못 쓴다.)
+- **리뷰 캐시는 세션 메모리다.** 구글 약관이 리뷰·별점 캐싱을 금지하고 **`place_id` 만 무기한 저장을 허용**한다. 그래서 리뷰 본문은 탭이 살아 있는 동안만 `Map` 에 두고 `localStorage` 에는 `place_id` 만 남긴다(`bbaego:googlePlaceId`). 응답에 `Cache-Control: no-store` 를 유지하는 것도 같은 이유다 — 엣지 캐시가 붙으면 약관 위반이다.
+- **리뷰 실패를 `requestPage` 쪽 오류 처리로 넘기면 안 된다.** 그쪽은 `503 NO_KEY` 를 보면 페이지 전체를 씨드 폴백 + "샘플로 둘러보는 중" 배너로 뒤집는다. **구글** 키가 없다는 이유로 카카오 검색 결과가 통째로 샘플로 바뀌면 그 배너가 거짓말이 된다. 리뷰 실패는 패널 안에서만 처리한다.
+- **리뷰 본문을 자르지 않고 작성자·원본 링크·정렬 고지를 같이 낸다.** UI 취향이 아니라 구글 정책 요구사항이다. `line-clamp` 를 넣는 순간 위반이다.
+- **`.result-grid` 에 `align-items: start` 가 필요했다.** 그리드 기본값(`stretch`)이면 카드 하나를 펼쳤을 때 같은 행의 나머지 카드도 같이 늘어나 옆자리에 빈 공간이 생긴다.
+- **카카오 REST 키는 `api/_lib/kakao.js`, 구글 키는 `api/_lib/places.js` 안에서만 읽힌다.** 브라우저로 나가지 않는다 (PRD 12장 이슈 8). `.env`는 `.gitignore` 대상이고 **저장소가 public이라 이건 타협 불가**다. 키가 없으면 프록시가 `503 NO_KEY`를 주고 클라이언트는 씨드 12곳으로 폴백한다 — 폴백은 예외 경로가 아니라 기본 경로다.
 - **`.js .reveal` 로 스코프된 이유** — JS가 죽으면 `opacity:0` 요소가 영영 안 보인다. `<head>`의 인라인 스크립트가 `html.js` 를 붙여야만 모션이 켜진다. 지금 남은 화면에는 `.reveal` 요소가 없지만, 인라인 스크립트와 CSS 규칙은 그대로 뒀다 — 다시 섹션을 붙일 때 이 스코프가 없으면 같은 함정을 다시 밟는다.
 - **`[hidden]` 을 쓸 때 `display:flex` 를 조심한다.** 삭제된 랜딩에서 `.cta-form[hidden]{display:none}` 이 명시적으로 필요했다. 지금 화면의 `#demoBanner` · `#savedEmpty` 도 같은 함정 위에 있다.
 
@@ -85,7 +103,10 @@ git 원격은 `origin` → `github.com/dongjin-star/sungshin_review` (**public �
 `review_design.md` 7장이 "권고가 아니라 규칙"으로 못박은 것들. 판단이 흔들리면 그 장을 읽는다.
 
 - **UI에 유채색 금지.** 버튼·칩·배지·아이콘 전부 `--ink` / `--ink-muted` / `--line` 안에서 해결한다. 예외는 폼 에러용 `--error: #8C4A3F` 하나뿐이다.
-- **정량 지표 표시 금지.** 별점·리뷰 수·방문자 수·저장 수·순위. v1의 리뷰는 1인이 쓴 40건이라 숫자를 적는 순간 카피가 거짓이 된다 (PRD 10.5). 단어로서의 "별점"은 허용, *표시*가 금지 대상이다.
+- **정량 지표 표시 금지 — 우리 데이터에 한해** (2026-08-21 개정). 별점·리뷰 수·방문자 수·저장 수·순위. v1의 리뷰는 1인이 쓴 40건이라 숫자를 적는 순간 카피가 거짓이 된다 (PRD 10.5).
+  - 예외 ①: 내가 담은 목록의 개수
+  - 예외 ②: **구글 리뷰 패널 안의 구글 별점·리뷰 수.** 남의 표본이라 위 근거가 걸리지 않는다. 단 **출처가 화면에 드러나는 자리에서만** — 카드 메타 줄로 끌어내거나 정렬·순위 기준으로 쓰는 것은 여전히 금지다 (그게 원래 막으려던 행동이다).
+- **UI에 유채색 금지 — 예외는 둘.** 폼 에러 `--error`, 그리고 구글 리뷰 패널 안의 `⭐` 글리프. ⭐ 는 패널 밖으로 나가지 않는다.
 - **`box-shadow` 금지.** 예외는 모달 딤 배경뿐.
 - **명조는 28px 이상에서만.** 원래 히어로 헤드 / S2 질문 / S4 CTA 세 곳 전용이었고, 그 세 곳은 랜딩과 함께 사라졌다. **지금 화면에는 명조를 쓸 자리가 없다.**
 - **`font-weight` 는 400과 600만.**
@@ -110,6 +131,10 @@ PRD 10.6이 특히 경고한다: AI 요약·대시보드는 지금 당장 만들
 5. **담은 목록이 기기에 묶여 있다.** `localStorage` 뿐이라 기기를 바꾸면 사라진다. F7(로그인) 도입 시 이관 작업이 필요하다.
 6. **실기기 검증 미완료.** 320/375/768/1440은 동일 오리진 iframe 프로브로 실측했으나 실제 모바일 기기에서는 확인하지 않았다.
 7. **카카오 "치킨" 분류에 대응 코드가 없다.** `category: null` 로 두어 칩 필터에서 빠진다. 2026-08-21 실응답 확인 — "치킨"으로 검색하면 15곳 전부 `category: null` 이다. 카드에는 `categoryLabel` 로 "치킨"이 그대로 보이지만 어떤 칩으로도 걸러지지 않는다. `간식`·`술집` 도 같은 상태다. `CATEGORIES` 에 추가할지는 제품 결정이라 보류 중 (PRD 12장 이슈 4가 "씨드 입력 전 고정"으로 잠가둔 목록).
+
+9. **구글 리뷰의 실제 매칭률이 미검증이다.** 150m 필터가 얼마나 자주 헛치는지는 성수동 표본으로만 봤다. 신규·소규모 가게는 구글에 없거나 이름이 달라 `found:false` 가 잦을 수 있다. 잦으면 `address` 파라미터 활용을 늘리거나 반경을 재검토한다.
+10. **리뷰 조회 비용이 클릭당 최상위 등급이다.** `reviews`·`rating`·`userRatingCount` 는 Places 의 Enterprise + Atmosphere 등급이고 **한 요청에 걸린 가장 높은 등급으로 과금**된다. 세션 캐시가 유일한 방어선이라 빼면 안 된다. 구글 클라우드 콘솔에서 예산 알림을 걸어두는 것을 권한다.
+11. **Vercel 환경변수가 아직 안 들어갔을 수 있다.** `KAKAO_REST_KEY` 와 `GOOGLE_MAPS_API_KEY` 를 대시보드(Settings → Environment Variables)에 넣어야 배포본이 동작한다. `.env` 는 git 에 안 올라가므로 배포에는 없다. 대시보드 설정도 확인: Framework Preset = **Other**, Build Command·Output Directory 는 **비워 둔다** (Output 을 `public` 으로 두면 사이트 전체가 404).
 
 PRD 12장에 남은 열린 이슈(서비스명 확정, 씨드 지역·촬영 계획, 기술 스택)도 함께 참고한다. 현재 서비스명은 가제 `빼고`이며 `seed.js` 의 `SERVICE_NAME` 상수 한 곳에서 관리된다 — **다만 랜딩 삭제 후 이 상수를 읽는 코드가 없다.** 화면의 "빼고"는 `index.html` 에 하드코딩돼 있다.
 

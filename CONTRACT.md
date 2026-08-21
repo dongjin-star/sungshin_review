@@ -17,6 +17,7 @@
 | `review_design.md` | **design** |
 | `index.html` (검색·담기) | **logic** |
 | `assets/search.js` | **logic** |
+| `api/` (서버리스 함수 + `_lib/`) | **logic** |
 | `assets/search.css` (레이아웃 전용) | **logic** |
 | `assets/seed.js` | **logic** |
 | `assets/geo.js` | **logic** |
@@ -112,6 +113,47 @@ state-loading  state-empty  state-error  state-demo
 ```
 추가 승인 (2026-08-20): `result-card-note` — 시드 폴백일 때 도로명 대신 방문 메모를 담는다. `.result-card-addr` 한 클래스가 두 의미를 갖지 않도록 분리.
 
+**추가 승인 (2026-08-21) — 구글 리뷰 패널 (1.6):**
+```
+result-card-toggle  result-card-toggle-mark
+review-panel  review-panel-status  review-panel-note  review-panel-link
+review-rating
+review-list  review-item  review-item-head  review-item-author
+review-item-text  review-item-link
+```
+
+### 1.6 구글 리뷰 패널
+
+가게 이름이 열기 버튼이다. 카드 전체를 클릭 대상으로 삼지 않는다 — 안에 `.btn-save` 와 `.result-card-link` 가 이미 있어 중첩 클릭이 된다.
+
+```html
+<h3 class="result-card-title">
+  <button class="result-card-toggle" type="button"
+          aria-expanded="false" aria-controls="rv-kakao-123">
+    가게 이름<span class="result-card-toggle-mark" aria-hidden="true">▾</span>
+  </button>
+</h3>
+...
+<div class="review-panel" id="rv-kakao-123" hidden>
+  <p class="review-rating">⭐ 4.3 · 리뷰 128</p>
+  <ul class="review-list">
+    <li class="review-item">
+      <p class="review-item-head"><span class="review-item-author">홍길동</span> · ⭐ 5 · 3개월 전</p>
+      <p class="review-item-text">…</p>
+      <a class="review-item-link" href="…" target="_blank" rel="noopener">이 리뷰 원문</a>
+    </li>
+  </ul>
+  <p class="review-panel-note">구글이 정한 순서로 보여주는 리뷰예요.</p>
+  <a class="review-panel-link" href="…" target="_blank" rel="noopener">Google Maps에서 전체 리뷰 보기</a>
+</div>
+```
+
+- 열림 상태는 **`aria-expanded`** 로만 표현한다. `.is-open` 을 만들지 않는다 (1.2 칩과 같은 규칙).
+- 로딩·못 찾음·실패는 전부 `.review-panel-status` 한 클래스로 낸다. `.state-*` 를 재사용하지 않는다 — 그쪽은 결과 영역 전체용이라 padding 이 48px 이다.
+- **`.review-item-author` · `.review-item-link` · `.review-panel-note` 는 선택이 아니다.** 구글 정책이 작성자 표기·원본 리뷰 접근·정렬 방식 고지를 요구한다. 지우면 정책 위반이다.
+- **리뷰 본문을 자르지 않는다.** `line-clamp` 금지 — 구글이 원문의 변형·절단을 금지한다.
+- `Google Maps` 는 이 대소문자 그대로 둔다. 지도 없이 데이터만 쓸 때 요구되는 귀속 표기다.
+
 기존 클래스 중 재사용 가능: `wrap` `section` `section-head` `eyebrow` `btn` `btn-primary` `btn-secondary` `t-h1` `t-h2` `t-body` `t-note` `t-caption` `t-label` `muted` `sr-only`
 **+ 추가 승인 (2026-08-20)**: `masthead` `wordmark` `footer` `footer-rows` — 두 페이지가 같은 서비스로 보여야 하므로 `search.html` 도 같은 헤더·푸터 크롬을 썼다. 2026-08-21 랜딩 삭제 후에도 이 크롬은 그대로 남는다 (`masthead-link` 는 랜딩→검색 진입점이었으므로 쓰이지 않는다).
 
@@ -172,6 +214,33 @@ state-loading  state-empty  state-error  state-demo
 |---|---|---|
 | `GET /api/search` | `q` (필수), `x`, `y`, `radius`(선택), `page` | `{ places: [...], meta: { total, isEnd, page } }` |
 | `GET /api/category` | `group` (기본 `FD6`), `x`, `y`, `radius`(기본 1000), `page` | 동일 |
+| `GET /api/reviews` | `name`+`x`+`y` (**셋 다 필수**), `address`(선택) · 또는 `placeId` 단독 | 아래 |
+
+**엔드포인트는 로컬과 배포에서 같은 코드다.** 로직은 `api/_lib/` 에 있고, `api/*.js` 가 Vercel 함수 진입점이며, `server/proxy.mjs` 는 개발용으로 그 **같은 함수 객체**를 import 해서 부른다. 한쪽에만 있는 코드 경로를 만들지 않는다.
+
+#### `/api/reviews` — 찾음 (200)
+```js
+{ found: true,
+  place: {
+    placeId: "ChIJ…", name: "성수족발",
+    rating: 4.3,          // 없으면 null
+    reviewCount: 128,     // 없으면 null
+    googleMapsUri: "https://…",
+    distance: 38,         // m. placeId 로 조회하면 null
+    region: "seongsu",    // 8km 밖이면 null (검색 결과와 같은 규칙)
+    reviews: [ { id, rating, text, author, authorUri,
+                 relativeTime, publishTime, googleMapsUri } ]   // 최대 5
+  } }
+```
+
+#### `/api/reviews` — 못 찾음 (**200**, 오류가 아니다)
+```js
+{ found: false, place: null, reason: "NO_MATCH_WITHIN_150M" | "NO_RESULT" }
+```
+
+`NO_MATCH_WITHIN_150M` 은 구글이 후보를 줬지만 전부 150m 밖인 경우, `NO_RESULT` 는 후보 자체가 없는 경우다. **둘을 합치지 않는다** — 이름이 안 맞는 것과 구글에 없는 것은 다른 제품 문제다.
+
+**150m 재검사는 서버가 한다.** 구글의 `locationBias` 는 제한이 아니라 편향이라 근처에 없으면 수 km 밖 결과를 그대로 준다. 검사를 빼면 "성수동 좌표 + 영진돼지국밥" 에 부산 가게의 리뷰가 붙는다.
 
 **`radius` 는 두 엔드포인트에서 뜻이 다르다 (2026-08-21 개정).**
 
@@ -205,9 +274,10 @@ state-loading  state-empty  state-error  state-demo
 
 `review_design.md` 7장 — 권고가 아니라 규칙이다.
 
-- **UI에 유채색 금지.** 예외는 폼 에러용 `--error: #8C4A3F` 하나뿐. 카테고리별 색상 부여 금지
-- **정량 지표 표시 금지.** 별점 · 리뷰 수 · 방문자 수 · **타인의 저장 수** · 순위. `distance` 를 순위처럼 쓰지 않는다
-  - 예외: *내가 담은 목록의 개수* 는 사회적 증거가 아니므로 표시 가능
+- **UI에 유채색 금지.** 예외는 **둘뿐** — 폼 에러용 `--error: #8C4A3F`, 그리고 구글 리뷰 패널 안의 `⭐` 글리프 (2026-08-21, DESIGN 7.3). 카테고리별 색상 부여 금지
+- **정량 지표 표시 금지 — 우리 데이터에 한해** (2026-08-21 개정, DESIGN 7.1). 별점 · 리뷰 수 · 방문자 수 · **타인의 저장 수** · 순위. `distance` 를 순위처럼 쓰지 않는다
+  - 예외 ①: *내가 담은 목록의 개수* 는 사회적 증거가 아니므로 표시 가능
+  - 예외 ②: **구글 리뷰 패널(1.6) 안의 구글 별점·리뷰 수.** 출처가 화면에 드러나는 자리에서만. 카드 메타 줄로 끌어내거나 **정렬·순위 기준으로 쓰는 것은 여전히 금지**
 - **`box-shadow` 금지.** 예외는 모달 딤 배경뿐. 계층은 1px `--line` 보더로 낸다
 - **명조(`--font-serif`)는 28px 이상에서만.** 버튼·칩·본문·캡션에 쓰지 않는다
 - **`font-weight` 는 400 과 600 만**

@@ -32,6 +32,10 @@ import { metersBetween, distanceText, formatDate } from "./geo.js";
 const WISHLIST_KEY = "bbaego:wishlist";
 const DEBOUNCE_MS  = 300;
 
+/* 구글 place_id 캐시. 리뷰 본문·별점은 여기 넣지 않는다 —
+   구글 약관이 place_id 를 뺀 나머지 콘텐츠의 저장을 금지한다. */
+const PLACE_ID_KEY = "bbaego:googlePlaceId";
+
 /* 반경은 단계로만 넓힌다. 0건일 때 "더 넓게 찾기"가 밟는 사다리다. */
 const RADIUS_STEPS = [1000, 2000, 5000, 10000, 20000];
 
@@ -49,7 +53,8 @@ const state = {
   originLabel: HOME.label,
   radiusStep: 0,
   demo: false,
-  seq: 0            // 늦게 도착한 응답이 최신 결과를 덮어쓰지 않게 하는 요청 번호
+  seq: 0,           // 늦게 도착한 응답이 최신 결과를 덮어쓰지 않게 하는 요청 번호
+  openReviews: new Set()   // 펼쳐 둔 리뷰 패널. 다시 그릴 때 복원한다
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -287,6 +292,183 @@ function showEmpty() {
 }
 
 /* ------------------------------------------------------------
+   구글 리뷰 — CONTRACT 1.6
+   ------------------------------------------------------------
+   알아둘 것:
+
+   - **캐시는 세션 메모리다.** 구글 약관이 리뷰·별점 캐싱을 금지하고
+     place_id 만 무기한 저장을 허용한다. 그래서 리뷰 본문은 탭이 살아 있는
+     동안만 Map 에 두고, localStorage 에는 place_id 만 남긴다.
+     "같은 가게를 다시 클릭하면 재요청 없음" 은 그대로 만족한다.
+
+   - **NO_KEY 를 requestPage 쪽 처리로 넘기면 안 된다.** 그쪽은 503 을 보면
+     페이지 전체를 씨드 폴백 + "샘플로 둘러보는 중" 배너로 뒤집는다.
+     구글 키가 없다는 이유로 카카오 검색 결과가 통째로 샘플로 바뀌면
+     그 배너가 거짓말이 된다. 리뷰 실패는 리뷰 영역 안에서만 처리한다.
+
+   - **리뷰 본문을 자르지 않고, 작성자와 원본 링크를 반드시 같이 낸다.**
+     구글 정책 요구사항이라 UI 취향의 문제가 아니다.
+   ------------------------------------------------------------ */
+
+const reviewCache = new Map();   // id → payload. 탭을 닫으면 사라진다.
+const reviewSeq   = new Map();   // id → 요청 번호. 늦은 응답이 최신 화면을 덮지 않게 한다.
+
+function loadPlaceIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PLACE_ID_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePlaceId(id, placeId) {
+  if (!id || !placeId) return;
+  try {
+    const map = loadPlaceIds();
+    if (map[id] === placeId) return;
+    map[id] = placeId;
+    localStorage.setItem(PLACE_ID_KEY, JSON.stringify(map));
+  } catch {
+    /* 프라이빗 모드 등 — 저장 실패해도 조회는 그대로 된다 */
+  }
+}
+
+async function requestReviews(place) {
+  const known = loadPlaceIds()[place.id];
+  const params = new URLSearchParams();
+
+  if (known) {
+    // 이미 150m 검사를 통과해서 얻은 id 라 검색 단계를 건너뛴다.
+    params.set("placeId", known);
+  } else {
+    params.set("name", place.name);
+    params.set("x", String(place.lng));
+    params.set("y", String(place.lat));
+    // 도로명을 같이 넘기면 체인점이 갈린다 ("스타벅스" 하나로는 150m 안에서도 모호하다)
+    if (place.roadAddress) params.set("address", place.roadAddress);
+  }
+
+  let res;
+  try {
+    res = await fetch(`/api/reviews?${params}`, { headers: { Accept: "application/json" } });
+  } catch {
+    throw new Error("연결이 끊겼어요.");
+  }
+
+  let body = null;
+  try { body = await res.json(); } catch { /* 상태 코드로 처리한다 */ }
+
+  if (!res.ok || body?.error) {
+    throw new Error(body?.message || "잠시 뒤에 다시 시도해 주세요.");
+  }
+  return body;
+}
+
+/** "⭐ 4.3 · 리뷰 128" — 둘 중 하나만 있어도 그것만 낸다 */
+function ratingLine(place) {
+  const parts = [];
+  if (Number.isFinite(place.rating)) parts.push(`⭐ ${place.rating.toFixed(1)}`);
+  if (Number.isFinite(place.reviewCount)) {
+    parts.push(`리뷰 ${place.reviewCount.toLocaleString("ko-KR")}`);
+  }
+  return parts.join(" · ");
+}
+
+function buildReviewItem(review) {
+  const li = el("li", "review-item");
+
+  const head = el("p", "review-item-head");
+  // 작성자를 반드시 밝힌다 (구글 정책). 이름이 없으면 익명으로라도 표기한다.
+  head.append(el("span", "review-item-author", review.author || "구글 이용자"));
+
+  const bits = [];
+  if (Number.isFinite(review.rating)) bits.push(`⭐ ${review.rating}`);
+  if (review.relativeTime) bits.push(review.relativeTime);
+  if (bits.length) head.append(document.createTextNode(` · ${bits.join(" · ")}`));
+  li.append(head);
+
+  if (review.text) li.append(el("p", "review-item-text", review.text));
+
+  // 원본 리뷰로 갈 수 있어야 한다 (구글 정책)
+  if (review.googleMapsUri) {
+    const a = el("a", "review-item-link", "이 리뷰 원문");
+    a.href = review.googleMapsUri;
+    a.target = "_blank";
+    a.rel = "noopener";
+    li.append(a);
+  }
+  return li;
+}
+
+function renderReviewPanel(panel, payload) {
+  panel.replaceChildren();
+
+  if (!payload.found) {
+    const why = payload.reason === "NO_MATCH_WITHIN_150M"
+      ? "이 자리에서 걸어서 2분 안에 같은 이름의 가게를 찾지 못했어요."
+      : "구글에 등록되지 않은 가게인 것 같아요.";
+    panel.append(el("p", "review-panel-status", why));
+    return;
+  }
+
+  const place = payload.place;
+
+  const rating = ratingLine(place);
+  if (rating) panel.append(el("p", "review-rating", rating));
+
+  if (place.reviews.length) {
+    const list = el("ul", "review-list");
+    list.append(...place.reviews.map(buildReviewItem));
+    panel.append(list);
+    // 정렬 방식 고지 — 구글 정책 요구사항
+    panel.append(el("p", "review-panel-note", "구글이 정한 순서로 보여주는 리뷰예요."));
+  } else {
+    panel.append(el("p", "review-panel-status", "아직 올라온 리뷰가 없어요."));
+  }
+
+  if (place.googleMapsUri) {
+    // "Google Maps" 는 이 대소문자 그대로 둔다 — 지도 없이 데이터만 쓸 때
+    // 구글이 요구하는 귀속 표기다.
+    const a = el("a", "review-panel-link", "Google Maps에서 전체 리뷰 보기");
+    a.href = place.googleMapsUri;
+    a.target = "_blank";
+    a.rel = "noopener";
+    panel.append(a);
+  }
+}
+
+async function openReviews(place, panel) {
+  const cached = reviewCache.get(place.id);
+  if (cached) { renderReviewPanel(panel, cached); return; }   // 재요청 없음
+
+  const seq = (reviewSeq.get(place.id) || 0) + 1;
+  reviewSeq.set(place.id, seq);
+
+  panel.replaceChildren(el("p", "review-panel-status", "리뷰를 불러오는 중..."));
+
+  try {
+    const payload = await requestReviews(place);
+    if (reviewSeq.get(place.id) !== seq) return;   // 접었다 다시 연 뒤의 늦은 응답
+
+    reviewCache.set(place.id, payload);
+    if (payload.found) savePlaceId(place.id, payload.place.placeId);
+    renderReviewPanel(panel, payload);
+  } catch (err) {
+    if (reviewSeq.get(place.id) !== seq) return;
+
+    // 여기서 끝낸다. 페이지 전체를 씨드 폴백으로 뒤집지 않는다.
+    panel.replaceChildren();
+    const box = el("p", "review-panel-status", `리뷰를 불러오지 못했어요. ${err.message}`);
+    const retry = el("button", "btn btn-secondary", "다시 시도");
+    retry.type = "button";
+    retry.addEventListener("click", () => openReviews(place, panel));
+    box.append(retry);
+    panel.append(box);
+  }
+}
+
+/* ------------------------------------------------------------
    결과 카드 — .card 를 절대 재사용하지 않는다 (CONTRACT 1.3)
    ------------------------------------------------------------ */
 function metaLine(place) {
@@ -323,7 +505,22 @@ function buildCard(place) {
   li.append(el("div", "result-card-photo"));
 
   const body = el("div", "result-card-body");
-  body.append(el("h3", "result-card-title", place.name));
+
+  // 제목이 리뷰 패널의 열기 버튼이다. 카드 전체를 클릭 대상으로 만들지 않는 이유는
+  // 안에 [담기]와 [카카오맵]이 이미 있어서다 — 중첩 클릭은 접근성이 깨진다.
+  const panelId = `rv-${place.id}`;
+  const title = el("h3", "result-card-title");
+  const toggle = el("button", "result-card-toggle");
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", panelId);
+  // 내용 없는 span 이다 — 화살표는 components.css 가 보더로 그린다 (글리프 폴백 회피)
+  const mark = el("span", "result-card-toggle-mark");
+  mark.setAttribute("aria-hidden", "true");   // 상태는 aria-expanded 가 이미 말한다
+  toggle.append(document.createTextNode(place.name), mark);
+  title.append(toggle);
+  body.append(title);
+
   body.append(el("p", "result-card-meta", metaLine(place)));
 
   // 주소와 메모를 한 클래스에 섞지 않는다. 한쪽은 기계가 준 위치 정보고,
@@ -352,6 +549,31 @@ function buildCard(place) {
   }
 
   body.append(foot);
+
+  const panel = el("div", "review-panel");
+  panel.id = panelId;
+  panel.hidden = true;
+  body.append(panel);
+
+  toggle.addEventListener("click", () => {
+    const open = toggle.getAttribute("aria-expanded") === "true";
+    toggle.setAttribute("aria-expanded", String(!open));
+    panel.hidden = open;
+    if (open) {
+      state.openReviews.delete(place.id);
+    } else {
+      state.openReviews.add(place.id);
+      openReviews(place, panel);
+    }
+  });
+
+  // 1페이지를 그린 뒤 45곳으로 다시 그리는 사이에 연 패널이 지워지지 않게 복원한다
+  if (state.openReviews.has(place.id)) {
+    toggle.setAttribute("aria-expanded", "true");
+    panel.hidden = false;
+    openReviews(place, panel);
+  }
+
   li.append(body);
   return li;
 }
